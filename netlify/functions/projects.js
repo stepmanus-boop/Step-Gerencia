@@ -1,7 +1,7 @@
 const API_BASE = process.env.SMARTSHEET_API_BASE || "https://api.smartsheet.com/2.0";
 const SHEET_NAME = process.env.SMARTSHEET_SHEET_NAME || "Progress Tracking Sheet - Piping Fabrication";
 const SHEET_ID_ENV = process.env.SMARTSHEET_SHEET_ID || "";
-const TOKEN = process.env.SMARTSHEET_TOKEN || "";
+const TOKEN = process.env.SMARTSHEET_TOKEN || "5pP36OjBaD1W2HWyxf6aoGxXasPvEl8gbqOmQ";
 
 const cache = global.__STEP_PROGRESS_CACHE__ || {
   sheetId: null,
@@ -539,6 +539,15 @@ async function apiFetch(path) {
   return response.json();
 }
 
+function normalizeName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 async function resolveSheetId() {
   if (cache.sheetId) return cache.sheetId;
   if (SHEET_ID_ENV) {
@@ -546,22 +555,35 @@ async function resolveSheetId() {
     return cache.sheetId;
   }
 
+  const target = normalizeName(SHEET_NAME);
   let page = 1;
+  let fuzzyFound = null;
+
   while (true) {
     const response = await apiFetch(`/sheets?page=${page}&pageSize=100`);
     const items = response.data || [];
-    const found = items.find((item) => (item.name || "").trim() === SHEET_NAME.trim());
 
-    if (found) {
-      cache.sheetId = String(found.id);
-      cache.sheetName = found.name;
+    const exactFound = items.find((item) => normalizeName(item.name) === target);
+    if (exactFound) {
+      cache.sheetId = String(exactFound.id);
+      cache.sheetName = exactFound.name;
       return cache.sheetId;
+    }
+
+    if (!fuzzyFound) {
+      fuzzyFound = items.find((item) => normalizeName(item.name).includes(target) || target.includes(normalizeName(item.name)));
     }
 
     if (!items.length || page >= (response.totalPages || 1)) {
       break;
     }
     page += 1;
+  }
+
+  if (fuzzyFound) {
+    cache.sheetId = String(fuzzyFound.id);
+    cache.sheetName = fuzzyFound.name;
+    return cache.sheetId;
   }
 
   throw new Error(`Sheet "${SHEET_NAME}" não encontrada. Defina SMARTSHEET_SHEET_ID ou confira SMARTSHEET_SHEET_NAME.`);

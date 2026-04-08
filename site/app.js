@@ -61,9 +61,9 @@ function setClock(targetTimeId, targetDateId, locale, timeZone) {
   }).format(now);
 
   const dateText = new Intl.DateTimeFormat(locale, {
-    weekday: "long",
+    weekday: "short",
     day: "2-digit",
-    month: "long",
+    month: "2-digit",
     year: "numeric",
     timeZone,
   }).format(now);
