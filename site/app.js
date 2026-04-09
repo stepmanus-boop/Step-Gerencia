@@ -228,7 +228,7 @@ function buildWeekOptions() {
 
   const options = [];
   options.push('<option value="">Todas as semanas</option>');
-  options.push(`<option value="${currentWeek}">Semana atual (${currentWeek})</option>`);
+  options.push(`<option value="${currentWeek}">${currentWeek}</option>`);
   for (const label of weekLabels) {
     if (label === currentWeek) continue;
     options.push(`<option value="${label}">${label}</option>`);
@@ -263,10 +263,13 @@ function getSelectedProject() {
 
 function renderStats() {
   if (!state.stats) return;
+  const currentWeek = getCurrentProductionWeekLabel();
   document.getElementById("stat-projects").textContent = formatNumber(state.stats.totalProjects);
   document.getElementById("stat-spools").textContent = `${formatNumber(state.stats.totalWeldedWeightKg, 0)} kg`;
   document.getElementById("stat-total-weight").textContent = `${formatNumber(state.stats.totalWeightKg, 0)} kg`;
-  
+  const currentWeekEl = document.getElementById("stat-current-week");
+  if (currentWeekEl) currentWeekEl.textContent = currentWeek;
+
   document.getElementById("stat-completed").textContent = formatNumber(state.stats.completed);
   document.getElementById("stat-in-progress").textContent = formatNumber(state.stats.inProgress);
   document.getElementById("stat-not-started").textContent = formatNumber(state.stats.notStarted);
