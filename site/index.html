@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>STEP • Progress Tracking Dashboard</title>
+    <title>STEP • Painel Operacional</title>
     <link rel="stylesheet" href="./app.css" />
   </head>
   <body>
     <div class="page-shell">
       <header class="topbar">
         <div class="brand-card">
-          <img src="./assets/step-logo.png" alt="STEP Integrated Solutions" class="brand-logo" />
+          <img src="./assets/step-logo.png" alt="STEP Oil &amp; Gas" class="brand-logo" />
         </div>
 
         <div class="title-block">
           <p class="eyebrow">STEP OIL &amp; GAS LTDA</p>
-          <h1>PROGRESS TRACKING DASHBOARD</h1>
+          <h1>PAINEL OPERACIONAL DE PROJETOS</h1>
           <p class="subtitle">PIPING FABRICATION</p>
         </div>
 
@@ -54,7 +54,7 @@
           <strong id="stat-total-weight">--</strong>
         </article>
         <article class="summary-card summary-card--success">
-          <span class="summary-label">Concluídos</span>
+          <span class="summary-label">Finalizados</span>
           <strong id="stat-completed">--</strong>
         </article>
         <article class="summary-card summary-card--warning">
@@ -76,7 +76,7 @@
           <div class="panel-head">
             <div>
               <h2>Projetos</h2>
-              <p>Somente a lista de projetos faz rotação automática. A página permanece fixa no topo para TV.</p>
+              <p>Busca por projeto, spool ou ISO. Clique em uma linha para abrir o detalhamento completo.</p>
             </div>
             <div class="panel-meta">
               <span id="sheet-name">Smartsheet</span>
@@ -84,12 +84,21 @@
             </div>
           </div>
 
+          <div class="search-row">
+            <label class="search-box" for="project-search">
+              <span class="search-label">Buscar</span>
+              <input id="project-search" type="text" placeholder="Ex.: BSP 24-325-02" autocomplete="off" />
+            </label>
+            <button id="clear-search" class="ghost-button" type="button">Limpar</button>
+            <div class="search-count" id="search-count">-- resultado(s)</div>
+          </div>
+
           <div class="table-shell" id="table-shell">
             <table class="projects-table">
               <thead>
                 <tr>
                   <th>Projeto</th>
-                  <th>Spools</th>
+                  <th>Itens</th>
                   <th>Peso (kg)</th>
                   <th>Painting (m²)</th>
                   <th>Etapa atual</th>
@@ -116,14 +125,14 @@
         <aside class="panel panel--detail">
           <div class="panel-head panel-head--detail">
             <div>
-              <h2>Projeto em destaque</h2>
-              <p>Expansão automática com paginação dos spools, mantendo a tela organizada.</p>
+              <h2>Consulta operacional</h2>
+              <p>Selecione um projeto para visualizar os itens internos em janela detalhada.</p>
             </div>
-            <div class="autoplay-pill">AUTO</div>
+            <div class="autoplay-pill">VIEW</div>
           </div>
 
-          <div id="detail-card" class="detail-card">
-            <div class="detail-placeholder">Aguardando dados do Smartsheet…</div>
+          <div class="detail-card" id="detail-card">
+            <div class="detail-placeholder">Selecione um projeto na tabela ou pela busca para abrir o popup.</div>
           </div>
         </aside>
       </main>
@@ -132,6 +141,22 @@
         <span>Atualização automática por Netlify Functions + Smartsheet API</span>
         <span id="footer-version">Versão da sheet: --</span>
       </footer>
+    </div>
+
+    <div id="project-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close-modal="true"></div>
+      <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-head">
+          <div>
+            <p class="modal-eyebrow">Detalhamento operacional</p>
+            <h3 id="modal-title">Projeto</h3>
+            <p id="modal-subtitle" class="modal-subtitle">Itens internos e andamento por etapa</p>
+          </div>
+          <button id="modal-close" class="modal-close" type="button" aria-label="Fechar">×</button>
+        </div>
+
+        <div id="modal-content" class="modal-content"></div>
+      </div>
     </div>
 
     <script src="./app.js"></script>

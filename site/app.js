@@ -1,17 +1,13 @@
 const DEFAULT_POLL_MS = 30000;
-const DEFAULT_PROJECT_ROTATE_MS = 8000;
-const DEFAULT_SPOOL_ROTATE_MS = 4000;
-const SPOOL_PAGE_SIZE = 8;
 
 const state = {
   projects: [],
+  filteredProjects: [],
   stats: null,
   meta: null,
-  activeIndex: 0,
-  activeSpoolPage: 0,
+  searchQuery: "",
+  selectedProjectId: null,
   pollTimer: null,
-  rotateTimer: null,
-  spoolTimer: null,
 };
 
 const bodyEl = document.getElementById("projects-body");
@@ -19,6 +15,15 @@ const detailCardEl = document.getElementById("detail-card");
 const sheetNameEl = document.getElementById("sheet-name");
 const lastSyncEl = document.getElementById("last-sync");
 const footerVersionEl = document.getElementById("footer-version");
+const searchInputEl = document.getElementById("project-search");
+const clearSearchEl = document.getElementById("clear-search");
+const searchCountEl = document.getElementById("search-count");
+const tableShellEl = document.getElementById("table-shell");
+const modalEl = document.getElementById("project-modal");
+const modalContentEl = document.getElementById("modal-content");
+const modalTitleEl = document.getElementById("modal-title");
+const modalSubtitleEl = document.getElementById("modal-subtitle");
+const modalCloseEl = document.getElementById("modal-close");
 
 function formatNumber(value, fractionDigits = 0) {
   if (value == null || Number.isNaN(value)) return "—";
@@ -36,6 +41,13 @@ function formatPercent(value) {
   })}%`;
 }
 
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 function uiStateLabel(stateValue) {
   if (stateValue === "completed") return "Finalizado";
   if (stateValue === "in_progress") return "Em produção";
@@ -43,9 +55,7 @@ function uiStateLabel(stateValue) {
 }
 
 function translateProjectStatus(projectStatus, uiState) {
-  if (uiState === "completed") {
-    return "Finalizado";
-  }
+  if (uiState === "completed") return "Finalizado";
 
   const normalized = String(projectStatus || "").trim().toUpperCase().replace(/\s+/g, " ");
   if (["ONGOING", "ON GOING", "IN PROGRESS", "EM PRODUCAO", "EM PRODUÇÃO"].includes(normalized)) {
@@ -98,6 +108,41 @@ function startClocks() {
   window.setInterval(tick, 1000);
 }
 
+function enrichProjects(projects) {
+  return (projects || []).map((project) => {
+    const searchParts = [
+      project.projectDisplay,
+      project.projectNumber,
+      project.projectPrefix,
+      project.currentStage,
+      project.projectStatus,
+      ...(project.spools || []).flatMap((spool) => [spool.iso, spool.description, spool.drawing]),
+    ];
+
+    return {
+      ...project,
+      _searchText: normalizeText(searchParts.filter(Boolean).join(" | ")),
+    };
+  });
+}
+
+function applyFilter() {
+  const query = normalizeText(state.searchQuery).trim();
+  if (!query) {
+    state.filteredProjects = [...state.projects];
+  } else {
+    state.filteredProjects = state.projects.filter((project) => project._searchText.includes(query));
+  }
+
+  if (!state.filteredProjects.find((project) => project.rowId === state.selectedProjectId)) {
+    state.selectedProjectId = state.filteredProjects[0]?.rowId || null;
+  }
+}
+
+function getSelectedProject() {
+  return state.projects.find((project) => project.rowId === state.selectedProjectId) || null;
+}
+
 function renderStats() {
   if (!state.stats) return;
   document.getElementById("stat-projects").textContent = formatNumber(state.stats.totalProjects);
@@ -110,14 +155,17 @@ function renderStats() {
 }
 
 function renderTable() {
-  if (!state.projects.length) {
-    bodyEl.innerHTML = '<tr><td colspan="14" class="loading-cell">Nenhum projeto encontrado.</td></tr>';
+  if (!state.filteredProjects.length) {
+    bodyEl.innerHTML = '<tr><td colspan="14" class="loading-cell">Nenhum projeto encontrado para a busca informada.</td></tr>';
+    searchCountEl.textContent = "0 resultado(s)";
     return;
   }
 
-  bodyEl.innerHTML = state.projects
-    .map((project, index) => {
-      const isActive = index === state.activeIndex;
+  searchCountEl.textContent = `${state.filteredProjects.length} resultado(s)`;
+
+  bodyEl.innerHTML = state.filteredProjects
+    .map((project) => {
+      const isActive = project.rowId === state.selectedProjectId;
       const statusText = translateProjectStatus(project.projectStatus, project.uiState);
       const rowClass = [
         project.uiState === "completed" ? "completed-row" : "",
@@ -127,11 +175,11 @@ function renderTable() {
         .filter(Boolean)
         .join(" ");
 
-      const milestoneMap = Object.fromEntries((project.milestones || []).map((item) => [item.key, item.value]));
+      const stageMap = project.stageValues || {};
       const completedSymbol = project.finished ? "✓" : "✕";
 
       return `
-        <tr class="${rowClass}" data-project-index="${index}">
+        <tr class="${rowClass}" data-project-id="${project.rowId}">
           <td>${project.projectDisplay}</td>
           <td>${formatNumber(project.quantitySpools)}</td>
           <td>${formatNumber(project.kilos, 2)}</td>
@@ -144,12 +192,12 @@ function renderTable() {
           </td>
           <td>${formatPercent(project.individualProgress)}</td>
           <td>${formatPercent(project.overallProgress)}</td>
-          <td class="cell-status cell-status--${project.uiState}">${statusText}</td>
-          <td>${milestoneMap["Fabrication Start Date"] || "—"}</td>
-          <td>${milestoneMap["Boilermaker Finish Date"] || "—"}</td>
-          <td>${milestoneMap["Welding Finish Date"] || "—"}</td>
-          <td>${milestoneMap["Inspection Finish Date (QC)"] || "—"}</td>
-          <td>${milestoneMap["TH Finish Date"] || "—"}</td>
+          <td><span class="cell-status cell-status--${project.uiState}">${statusText}</span></td>
+          <td>${stageMap["Fabrication Start Date"] || "—"}</td>
+          <td>${stageMap["Boilermaker Finish Date"] || "—"}</td>
+          <td>${stageMap["Welding Finish Date"] || "—"}</td>
+          <td>${stageMap["Inspection Finish Date (QC)"] || "—"}</td>
+          <td>${stageMap["TH Finish Date"] || "—"}</td>
           <td class="cell-finished cell-finished--${project.finished ? "yes" : "no"}">${completedSymbol}</td>
         </tr>
       `;
@@ -157,170 +205,146 @@ function renderTable() {
     .join("");
 }
 
-function renderMilestones(project) {
-  const preferredKeys = [
-    "Fabrication Start Date",
-    "Boilermaker Finish Date",
-    "Welding Finish Date",
-    "Inspection Finish Date (QC)",
-    "TH Finish Date",
-    "Project Finish Date",
-  ];
-
-  const milestones = preferredKeys
-    .map((key) => (project.milestones || []).find((item) => item.key === key))
-    .filter(Boolean);
-
-  if (!milestones.length) {
-    return '<div class="milestone-item"><span>Marcos</span><strong>Sem datas fixadas ainda</strong></div>';
-  }
-
-  return milestones
-    .map(
-      (item) => `
-      <div class="milestone-item">
-        <span>${item.label}</span>
-        <strong>${item.value}</strong>
-      </div>
-    `
-    )
-    .join("");
-}
-
-function renderSpoolRows(project) {
-  const spools = project.spools || [];
-  if (!spools.length) {
-    return {
-      rows: '<tr><td colspan="6">Sem spools detalhados para este projeto.</td></tr>',
-      indicator: "0 / 0",
-    };
-  }
-
-  const totalPages = Math.max(1, Math.ceil(spools.length / SPOOL_PAGE_SIZE));
-  if (state.activeSpoolPage >= totalPages) {
-    state.activeSpoolPage = 0;
-  }
-
-  const start = state.activeSpoolPage * SPOOL_PAGE_SIZE;
-  const pageRows = spools.slice(start, start + SPOOL_PAGE_SIZE);
-
-  const rows = pageRows
-    .map((spool, index) => {
-      const isActive = index === 0;
-      return `
-        <tr class="${isActive ? "spool-row-active" : ""}">
-          <td>${spool.iso || "—"}</td>
-          <td>${spool.description || "—"}</td>
-          <td>${formatNumber(spool.kilos, 2)}</td>
-          <td>${formatNumber(spool.m2Painting, 3)}</td>
-          <td>
-            <span class="stage-pill">
-              <span class="stage-dot stage-dot--${stageStatusClass(spool.stageStatus)}"></span>
-              <span class="stage-text">${spool.stage}</span>
-            </span>
-          </td>
-          <td>${formatPercent(spool.overallProgress)}</td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  return {
-    rows,
-    indicator: `${state.activeSpoolPage + 1} / ${totalPages}`,
-  };
-}
-
-function renderDetail() {
-  const project = state.projects[state.activeIndex];
+function renderSelectedProjectCard() {
+  const project = getSelectedProject();
   if (!project) {
-    detailCardEl.innerHTML = '<div class="detail-placeholder">Nenhum projeto carregado.</div>';
+    detailCardEl.innerHTML = '<div class="detail-placeholder">Selecione um projeto na tabela ou pela busca para abrir o popup.</div>';
     return;
   }
 
-  const spoolRows = renderSpoolRows(project);
   const statusText = translateProjectStatus(project.projectStatus, project.uiState);
+  const matchedSpools = project.spools?.length || 0;
 
   detailCardEl.innerHTML = `
-    <section class="detail-hero">
+    <div class="detail-hero compact">
       <div class="detail-project-title">
         <div>
-          <p class="detail-project-subtitle">Projeto em rotação automática</p>
+          <p class="detail-project-subtitle">Projeto selecionado</p>
           <h3>${project.projectDisplay}</h3>
         </div>
         <span class="badge badge--${project.uiState}">${statusText}</span>
       </div>
 
-      <div class="detail-hero-body">
-        <div class="current-stage-box ${project.currentStageAlert ? "alert" : ""}">
-          <div class="current-stage-head">
-            <span class="current-stage-label">Etapa atual</span>
-            <span class="stage-progress">${formatPercent(project.currentStagePercent)}</span>
-          </div>
-          <div class="stage-pill">
-            <span class="stage-dot stage-dot--${stageStatusClass(project.currentStageStatus)}"></span>
-            <span class="stage-name">${project.currentStage}</span>
-          </div>
-          <div class="current-stage-meta">O alerta fica ativo quando a etapa ainda não atingiu 100%.</div>
-        </div>
+      <div class="detail-grid compact-grid">
+        <div class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></div>
+        <div class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 2)}</strong></div>
+        <div class="metric-chip"><span>Painting</span><strong>${formatNumber(project.m2Painting, 3)}</strong></div>
+        <div class="metric-chip"><span>% Individual</span><strong>${formatPercent(project.individualProgress)}</strong></div>
+        <div class="metric-chip"><span>% Geral</span><strong>${formatPercent(project.overallProgress)}</strong></div>
+        <div class="metric-chip"><span>Itens internos</span><strong>${matchedSpools}</strong></div>
+      </div>
 
-        <div class="detail-grid">
-          <div class="metric-chip">
-            <span>Qtd. itens</span>
-            <strong>${formatNumber(project.quantitySpools)}</strong>
-          </div>
-          <div class="metric-chip">
-            <span>Peso total</span>
-            <strong>${formatNumber(project.kilos, 2)}</strong>
-          </div>
-          <div class="metric-chip">
-            <span>Painting total</span>
-            <strong>${formatNumber(project.m2Painting, 3)}</strong>
-          </div>
-          <div class="metric-chip">
-            <span>% Individual</span>
-            <strong>${formatPercent(project.individualProgress)}</strong>
-          </div>
-          <div class="metric-chip">
-            <span>% Geral</span>
-            <strong>${formatPercent(project.overallProgress)}</strong>
-          </div>
-          <div class="metric-chip">
-            <span>Spools concluídos</span>
-            <strong>${project.spoolStats.completed}/${project.spoolStats.total}</strong>
-          </div>
+      <div class="current-stage-box ${project.currentStageAlert ? "alert" : ""}">
+        <div class="current-stage-head">
+          <span class="current-stage-label">Etapa atual</span>
+          <span class="stage-progress">${formatPercent(project.currentStagePercent)}</span>
+        </div>
+        <div class="stage-pill">
+          <span class="stage-dot stage-dot--${stageStatusClass(project.currentStageStatus)}"></span>
+          <span class="stage-name">${project.currentStage}</span>
         </div>
       </div>
+
+      <div class="detail-actions">
+        <button class="primary-button" type="button" id="open-selected-project">Abrir detalhamento completo</button>
+      </div>
+    </div>
+  `;
+
+  const button = document.getElementById("open-selected-project");
+  if (button) {
+    button.addEventListener("click", () => openProjectModal(project));
+  }
+}
+
+function renderModal(project) {
+  const stageOrder = state.meta?.stageOrder || [];
+  const milestoneList = (project.milestones || [])
+    .map((item) => `<div class="milestone-chip"><span>${item.label}</span><strong>${item.value}</strong></div>`)
+    .join("");
+
+  const spoolRows = (project.spools || [])
+    .map((spool) => {
+      const stageColumns = stageOrder
+        .map((stage) => {
+          const value = spool.stageValues?.[stage.key];
+          return `<td>${value == null || value === "" ? "—" : stage.type === "percent" ? formatPercent(value) : value}</td>`;
+        })
+        .join("");
+
+      return `
+        <tr>
+          <td>${spool.iso || "—"}</td>
+          <td>${spool.description || "—"}</td>
+          <td>${formatNumber(spool.kilos, 2)}</td>
+          <td>${formatNumber(spool.m2Painting, 3)}</td>
+          <td><span class="cell-status cell-status--${spool.uiState}">${uiStateLabel(spool.uiState)}</span></td>
+          <td>${spool.stage || "—"}</td>
+          <td>${formatPercent(spool.individualProgress)}</td>
+          <td>${formatPercent(spool.overallProgress)}</td>
+          ${stageColumns}
+        </tr>
+      `;
+    })
+    .join("");
+
+  const stageHeaders = stageOrder.map((stage) => `<th>${stage.label}</th>`).join("");
+  const statusText = translateProjectStatus(project.projectStatus, project.uiState);
+
+  modalTitleEl.textContent = project.projectDisplay;
+  modalSubtitleEl.textContent = `${statusText} • ${project.spools?.length || 0} item(ns) interno(s)`;
+
+  modalContentEl.innerHTML = `
+    <section class="modal-summary-grid">
+      <article class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></article>
+      <article class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 2)}</strong></article>
+      <article class="metric-chip"><span>Painting total</span><strong>${formatNumber(project.m2Painting, 3)}</strong></article>
+      <article class="metric-chip"><span>% Individual</span><strong>${formatPercent(project.individualProgress)}</strong></article>
+      <article class="metric-chip"><span>% Geral</span><strong>${formatPercent(project.overallProgress)}</strong></article>
+      <article class="metric-chip"><span>Etapa atual</span><strong>${project.currentStage}</strong></article>
     </section>
 
-    <section class="milestone-list">
-      ${renderMilestones(project)}
+    <section class="modal-milestones">
+      ${milestoneList || '<div class="empty-inline">Nenhum marco de data disponível.</div>'}
     </section>
 
-    <section class="spool-panel">
-      <div class="spool-panel-head">
-        <h4>Spools / ISO do projeto</h4>
-        <div class="spool-page-indicator">Página ${spoolRows.indicator}</div>
-      </div>
-      <div class="spool-table-wrap">
-        <table class="spool-table">
-          <thead>
-            <tr>
-              <th>ISO</th>
-              <th>Descrição</th>
-              <th>Peso</th>
-              <th>Painting</th>
-              <th>Etapa</th>
-              <th>% Geral</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${spoolRows.rows}
-          </tbody>
-        </table>
-      </div>
+    <section class="modal-table-wrap">
+      <table class="modal-table">
+        <thead>
+          <tr>
+            <th>ISO</th>
+            <th>Descrição</th>
+            <th>Peso</th>
+            <th>Painting</th>
+            <th>Status</th>
+            <th>Etapa atual</th>
+            <th>% Individual</th>
+            <th>% Geral</th>
+            ${stageHeaders}
+          </tr>
+        </thead>
+        <tbody>
+          ${spoolRows || '<tr><td colspan="999" class="loading-cell">Nenhum item interno encontrado.</td></tr>'}
+        </tbody>
+      </table>
     </section>
   `;
+}
+
+function openProjectModal(project) {
+  state.selectedProjectId = project.rowId;
+  renderTable();
+  renderSelectedProjectCard();
+  renderModal(project);
+  modalEl.classList.remove("hidden");
+  modalEl.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function closeProjectModal() {
+  modalEl.classList.add("hidden");
+  modalEl.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
 }
 
 function updateMeta() {
@@ -328,36 +352,6 @@ function updateMeta() {
   sheetNameEl.textContent = state.meta.sheetName || "Smartsheet";
   lastSyncEl.textContent = `Última atualização: ${new Date(state.meta.lastSync).toLocaleString("pt-BR")}`;
   footerVersionEl.textContent = `Versão da sheet: ${state.meta.version}`;
-}
-
-function scrollActiveRowIntoView() {
-  const row = bodyEl.querySelector(`tr[data-project-index="${state.activeIndex}"]`);
-  if (!row) return;
-  row.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-}
-
-function restartProjectRotation() {
-  window.clearInterval(state.rotateTimer);
-  if (!state.projects.length) return;
-
-  state.rotateTimer = window.setInterval(() => {
-    state.activeIndex = (state.activeIndex + 1) % state.projects.length;
-    state.activeSpoolPage = 0;
-    renderTable();
-    renderDetail();
-    scrollActiveRowIntoView();
-  }, DEFAULT_PROJECT_ROTATE_MS);
-}
-
-function restartSpoolRotation() {
-  window.clearInterval(state.spoolTimer);
-  state.spoolTimer = window.setInterval(() => {
-    const project = state.projects[state.activeIndex];
-    if (!project || !project.spools || project.spools.length <= SPOOL_PAGE_SIZE) return;
-    const totalPages = Math.ceil(project.spools.length / SPOOL_PAGE_SIZE);
-    state.activeSpoolPage = (state.activeSpoolPage + 1) % totalPages;
-    renderDetail();
-  }, DEFAULT_SPOOL_ROTATE_MS);
 }
 
 async function loadProjects() {
@@ -369,22 +363,19 @@ async function loadProjects() {
       throw new Error(data.error || "Falha ao carregar projetos.");
     }
 
-    state.projects = data.projects || [];
+    state.projects = enrichProjects(data.projects || []);
     state.stats = data.stats || null;
     state.meta = data.meta || null;
 
-    if (state.activeIndex >= state.projects.length) {
-      state.activeIndex = 0;
-      state.activeSpoolPage = 0;
+    if (!state.selectedProjectId && state.projects.length) {
+      state.selectedProjectId = state.projects[0].rowId;
     }
 
+    applyFilter();
     renderStats();
     renderTable();
-    renderDetail();
+    renderSelectedProjectCard();
     updateMeta();
-    scrollActiveRowIntoView();
-    restartProjectRotation();
-    restartSpoolRotation();
   } catch (error) {
     bodyEl.innerHTML = `<tr><td colspan="14" class="loading-cell">${error.message}</td></tr>`;
     detailCardEl.innerHTML = `<div class="detail-placeholder">${error.message}</div>`;
@@ -396,8 +387,53 @@ function startPolling() {
   state.pollTimer = window.setInterval(loadProjects, DEFAULT_POLL_MS);
 }
 
+function bindEvents() {
+  searchInputEl.addEventListener("input", (event) => {
+    state.searchQuery = event.target.value;
+    applyFilter();
+    renderTable();
+    renderSelectedProjectCard();
+    tableShellEl.scrollTop = 0;
+  });
+
+  clearSearchEl.addEventListener("click", () => {
+    state.searchQuery = "";
+    searchInputEl.value = "";
+    applyFilter();
+    renderTable();
+    renderSelectedProjectCard();
+    tableShellEl.scrollTop = 0;
+    searchInputEl.focus();
+  });
+
+  bodyEl.addEventListener("click", (event) => {
+    const row = event.target.closest("tr[data-project-id]");
+    if (!row) return;
+    const projectId = Number(row.dataset.projectId);
+    const project = state.projects.find((item) => item.rowId === projectId);
+    if (!project) return;
+    state.selectedProjectId = projectId;
+    renderTable();
+    renderSelectedProjectCard();
+    openProjectModal(project);
+  });
+
+  modalEl.addEventListener("click", (event) => {
+    if (event.target.matches("[data-close-modal='true']")) {
+      closeProjectModal();
+    }
+  });
+
+  modalCloseEl.addEventListener("click", closeProjectModal);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeProjectModal();
+  });
+}
+
 function init() {
   startClocks();
+  bindEvents();
   loadProjects();
   startPolling();
 }

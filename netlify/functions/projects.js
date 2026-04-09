@@ -106,13 +106,8 @@ function parsePercent(row, key) {
 
   const parsed = parseNumberValue(raw ?? display);
   if (parsed == null) return null;
-
-  if (parsed >= 0 && parsed <= 1 && parsed !== 1) {
-    return parsed * 100;
-  }
-  if (parsed === 1 && typeof display === "string" && display === "1") {
-    return 100;
-  }
+  if (parsed >= 0 && parsed <= 1 && parsed !== 1) return parsed * 100;
+  if (parsed === 1 && typeof display === "string" && display === "1") return 100;
   return parsed;
 }
 
@@ -120,7 +115,7 @@ function isTruthyValue(value) {
   if (value == null) return false;
   if (typeof value === "boolean") return value;
   const normalized = String(value).trim().toLowerCase();
-  return ["true", "yes", "sim", "y", "1", "concluído", "concluido"].includes(normalized);
+  return ["true", "yes", "sim", "y", "1", "concluído", "concluido", "finalizado"].includes(normalized);
 }
 
 function formatDateValue(value) {
@@ -133,14 +128,10 @@ function formatDateValue(value) {
   if (!raw) return "";
 
   const simple = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (simple) {
-    return `${simple[3]}/${simple[2]}/${simple[1]}`;
-  }
+  if (simple) return `${simple[3]}/${simple[2]}/${simple[1]}`;
 
   const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (br) {
-    return raw;
-  }
+  if (br) return raw;
 
   const date = new Date(raw);
   if (!Number.isNaN(date.getTime())) {
@@ -152,53 +143,28 @@ function formatDateValue(value) {
 
 function parseProjectParts(projectText) {
   const cleaned = String(projectText || "").trim().replace(/\s+/g, " ");
-  if (!cleaned) {
-    return {
-      prefix: "",
-      number: "",
-      display: "",
-    };
-  }
+  if (!cleaned) return { prefix: "", number: "", display: "" };
 
   const match = cleaned.match(/^(?:([A-Z]{2,5})[\s-]+)?(\d{2}-\d+(?:-\d+)*(?:-[A-Z0-9]+)?)$/i);
   if (match) {
-    return {
-      prefix: (match[1] || "").toUpperCase(),
-      number: match[2],
-      display: cleaned,
-    };
+    return { prefix: (match[1] || "").toUpperCase(), number: match[2], display: cleaned };
   }
 
   const loose = cleaned.match(/([A-Z]{2,5})?[\s-]*(\d{2}-\d+(?:-\d+)*(?:-[A-Z0-9]+)?)/i);
   if (loose) {
     const prefix = loose[1] ? loose[1].toUpperCase() : "";
     const number = loose[2];
-    return {
-      prefix,
-      number,
-      display: prefix ? `${prefix} ${number}` : number,
-    };
+    return { prefix, number, display: prefix ? `${prefix} ${number}` : number };
   }
 
-  return {
-    prefix: "",
-    number: cleaned,
-    display: cleaned,
-  };
+  return { prefix: "", number: cleaned, display: cleaned };
 }
 
 function extractIsoDescription(drawingText) {
   const text = String(drawingText || "").trim();
-  if (!text) {
-    return { iso: "", description: "" };
-  }
+  if (!text) return { iso: "", description: "" };
   const match = text.match(/^(.*?)\s*\((.*?)\)\s*$/);
-  if (match) {
-    return {
-      iso: match[1].trim(),
-      description: match[2].trim(),
-    };
-  }
+  if (match) return { iso: match[1].trim(), description: match[2].trim() };
   return { iso: text, description: "" };
 }
 
@@ -207,6 +173,26 @@ function stageStatusFromPercent(percent) {
   if (percent >= 100) return "completed";
   if (percent > 0) return "in_progress";
   return "waiting";
+}
+
+function buildStageValues(row) {
+  const stageValues = {};
+  for (const stage of STAGE_ORDER) {
+    if (stage.type === "percent") {
+      const value = parsePercent(row, stage.key);
+      stageValues[stage.key] = value == null ? null : value;
+      continue;
+    }
+    if (stage.type === "date") {
+      const value = textValue(row, stage.key);
+      stageValues[stage.key] = value ? formatDateValue(value) : "";
+      continue;
+    }
+    if (stage.type === "boolean") {
+      stageValues[stage.key] = isTruthyValue(textValue(row, stage.key) || getCellValue(row, stage.key).raw) ? "Sim" : "Não";
+    }
+  }
+  return stageValues;
 }
 
 function deriveProgress(row) {
@@ -218,53 +204,28 @@ function deriveProgress(row) {
     if (stage.type === "date") {
       const value = textValue(row, stage.key);
       if (value) {
-        milestones.push({
-          key: stage.key,
-          label: stage.label,
-          value: formatDateValue(value),
-          type: "date",
-        });
+        milestones.push({ key: stage.key, label: stage.label, value: formatDateValue(value), type: "date" });
       }
       continue;
     }
 
     if (stage.type === "boolean") {
       const truthy = isTruthyValue(textValue(row, stage.key) || getCellValue(row, stage.key).raw);
-      milestones.push({
-        key: stage.key,
-        label: stage.label,
-        value: truthy ? "Sim" : "Não",
-        type: "boolean",
-      });
+      milestones.push({ key: stage.key, label: stage.label, value: truthy ? "Sim" : "Não", type: "boolean" });
       if (truthy && !currentStage) {
-        currentStage = {
-          key: stage.key,
-          label: stage.label,
-          percent: 100,
-          status: "completed",
-          isAlert: false,
-        };
+        currentStage = { key: stage.key, label: stage.label, percent: 100, status: "completed", isAlert: false };
       }
       continue;
     }
 
     const percent = parsePercent(row, stage.key);
     const hasContent = percent != null || textValue(row, stage.key);
-    if (!hasContent && stage.optional) {
-      continue;
-    }
-    if (!hasContent) {
-      continue;
-    }
+    if (!hasContent && stage.optional) continue;
+    if (!hasContent) continue;
 
     const status = stageStatusFromPercent(percent);
     if (status === "completed") {
-      completedStages.push({
-        key: stage.key,
-        label: stage.label,
-        percent: 100,
-        status,
-      });
+      completedStages.push({ key: stage.key, label: stage.label, percent: 100, status });
       continue;
     }
 
@@ -289,11 +250,7 @@ function deriveProgress(row) {
     };
   }
 
-  return {
-    currentStage,
-    completedStages,
-    milestones,
-  };
+  return { currentStage, completedStages, milestones };
 }
 
 function projectUiState(projectStatus, overallProgress, finished) {
@@ -312,11 +269,7 @@ function isSummaryRow(row) {
   const drawing = textValue(row, "Drawing");
   const parts = parseProjectParts(projectText);
 
-  return Boolean(
-    parts.prefix &&
-      parts.number &&
-      (quantitySpools != null || drawing === "ISO" || textValue(row, "Project Type"))
-  );
+  return Boolean(parts.prefix && parts.number && (quantitySpools != null || drawing === "ISO" || textValue(row, "Project Type")));
 }
 
 function isChildRow(row) {
@@ -324,12 +277,7 @@ function isChildRow(row) {
   const drawing = textValue(row, "Drawing");
   const projectText = textValue(row, "Project");
   const parts = parseProjectParts(projectText);
-  return Boolean(
-    !parts.prefix &&
-      parts.number &&
-      drawing &&
-      drawing !== "ISO"
-  );
+  return Boolean(!parts.prefix && parts.number && drawing && drawing !== "ISO");
 }
 
 function buildSpoolRow(row, parentSummary) {
@@ -346,6 +294,7 @@ function buildSpoolRow(row, parentSummary) {
     rowNumber: row.rowNumber,
     iso: parsedDrawing.iso,
     description: parsedDrawing.description,
+    drawing: drawingText,
     kilos: parseNumber(row, "Kilos"),
     m2Painting: parseNumber(row, "M2 Painting"),
     stage: progress.currentStage.label,
@@ -355,6 +304,7 @@ function buildSpoolRow(row, parentSummary) {
     individualProgress,
     overallProgress,
     milestones: progress.milestones,
+    stageValues: buildStageValues(row),
     finished,
     uiState,
   };
@@ -401,9 +351,10 @@ function buildProject(summaryRow, childRows) {
     client: textValue(summaryRow, "Client"),
     vessel: textValue(summaryRow, "Vessel"),
     className: textValue(summaryRow, "Class"),
+    milestones: progress.milestones,
+    stageValues: buildStageValues(summaryRow),
     finished,
     uiState,
-    milestones: progress.milestones,
     spools,
     spoolStats,
   };
@@ -416,10 +367,7 @@ function mapApiRows(sheet) {
     for (const cell of row.cells || []) {
       const title = columnMap.get(cell.columnId);
       if (!title) continue;
-      values[title] = {
-        raw: cell.value ?? null,
-        display: cell.displayValue ?? null,
-      };
+      values[title] = { raw: cell.value ?? null, display: cell.displayValue ?? null };
     }
     return {
       id: row.id,
@@ -471,7 +419,6 @@ function buildProjects(rows) {
     else lastProject.spoolStats.notStarted += 1;
   }
 
-  // Remove duplicated spools if both parentId and fallback contiguous matched.
   for (const project of projects) {
     const unique = [];
     const seen = new Set();
@@ -542,7 +489,7 @@ async function apiFetch(path) {
 function normalizeName(value) {
   return String(value || "")
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9]+/g, " ")
     .trim()
     .toLowerCase();
@@ -574,9 +521,7 @@ async function resolveSheetId() {
       fuzzyFound = items.find((item) => normalizeName(item.name).includes(target) || target.includes(normalizeName(item.name)));
     }
 
-    if (!items.length || page >= (response.totalPages || 1)) {
-      break;
-    }
+    if (!items.length || page >= (response.totalPages || 1)) break;
     page += 1;
   }
 
@@ -599,9 +544,7 @@ async function fetchFullSheet(sheetId) {
 }
 
 async function buildPayload() {
-  if (!TOKEN) {
-    throw new Error("SMARTSHEET_TOKEN não configurado.");
-  }
+  if (!TOKEN) throw new Error("SMARTSHEET_TOKEN não configurado.");
 
   const sheetId = await resolveSheetId();
   const version = await fetchSheetVersion(sheetId);
@@ -647,9 +590,6 @@ exports.handler = async () => {
     const payload = await buildPayload();
     return jsonResponse(200, payload);
   } catch (error) {
-    return jsonResponse(500, {
-      ok: false,
-      error: error.message,
-    });
+    return jsonResponse(500, { ok: false, error: error.message });
   }
 };
