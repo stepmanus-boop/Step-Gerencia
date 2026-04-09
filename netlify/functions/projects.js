@@ -312,6 +312,7 @@ function buildSpoolRow(row, parentSummary) {
     iso: parsedDrawing.iso,
     description: parsedDrawing.description,
     drawing: drawingText,
+    observations: textValue(row, "OBSERVATIONS"),
     kilos: parseNumber(row, "Kilos"),
     m2Painting: parseNumber(row, "M2 Painting"),
     stage: progress.currentStage.label,

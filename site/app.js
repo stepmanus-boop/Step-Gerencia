@@ -51,6 +51,16 @@ function normalizeText(value) {
     .replace(/[^a-z0-9]+/g, "");
 }
 
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function uiStateLabel(stateValue) {
   if (stateValue === "completed") return "Finalizado";
   if (stateValue === "awaiting_shipment") return "Aguardando envio";
@@ -313,10 +323,13 @@ function renderModal(project) {
         })
         .join("");
 
+      const observations = spool.observations ? escapeHtml(spool.observations).replace(/\n/g, "<br>") : "—";
+
       return `
         <tr data-modal-row="true">
           <td>${spool.iso || "—"}</td>
           <td>${spool.description || "—"}</td>
+          <td class="modal-observation-cell">${observations}</td>
           <td>${formatNumber(spool.kilos, 2)}</td>
           <td>${formatNumber(spool.m2Painting, 3)}</td>
           <td><span class="cell-status cell-status--${["awaiting_shipment", "completed"].includes(spool.uiState) ? "completed" : spool.uiState}">${uiStateLabel(spool.uiState)}</span></td>
@@ -355,6 +368,7 @@ function renderModal(project) {
           <tr>
             <th>ISO</th>
             <th>Descrição</th>
+            <th>Observações</th>
             <th>Peso</th>
             <th>Painting</th>
             <th>Status</th>
