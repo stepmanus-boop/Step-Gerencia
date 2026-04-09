@@ -48,7 +48,7 @@ body.modal-open { overflow: hidden; }
 
 .topbar {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr) 360px;
+  grid-template-columns: 250px minmax(0, 1fr) 430px;
   gap: 12px;
   padding: 10px;
   align-items: stretch;
@@ -62,8 +62,8 @@ body.modal-open { overflow: hidden; }
 
 .brand-logo {
   width: 100%;
-  max-width: 210px;
-  max-height: 80px;
+  max-width: 235px;
+  max-height: 88px;
   object-fit: contain;
 }
 
@@ -97,23 +97,26 @@ body.modal-open { overflow: hidden; }
 
 .clock-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  min-width: 0;
 }
 
 .clock-card {
-  padding: 10px 12px;
+  padding: 10px 12px 12px;
   display: grid;
   align-content: center;
   justify-items: center;
   gap: 6px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .clock-head {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .clock-flag { font-size: 19px; }
@@ -125,15 +128,25 @@ body.modal-open { overflow: hidden; }
 }
 
 .clock-time {
-  font-size: clamp(28px, 2.3vw, 44px);
+  display: block;
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  font-size: clamp(22px, 1.55vw, 34px);
   line-height: 1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .clock-date {
   color: #d9ecff;
   font-size: 12px;
   text-align: center;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .summary-row {
@@ -501,4 +514,10 @@ body.modal-open { overflow: hidden; }
 .modal-table tbody td.value-progress {
   color: var(--warning);
   font-weight: 700;
+}
+
+
+@media (max-width: 1550px) {
+  .topbar { grid-template-columns: 230px minmax(0, 1fr) 390px; }
+  .clock-time { font-size: clamp(20px, 1.45vw, 30px); }
 }
