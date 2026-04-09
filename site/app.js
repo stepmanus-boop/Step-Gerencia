@@ -234,8 +234,19 @@ function enrichProjects(projects) {
 function buildDemandOptions() {
   if (!demandFilterEl) return;
   const selected = state.demandFilter || "";
-  const options = Array.from(new Set(state.projects.map((project) => project.currentStage).filter(Boolean)))
-    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const hiddenDemandOptions = new Set([
+    normalizeText("Project Finished?"),
+    normalizeText("Drawing Execution"),
+  ]);
+
+  const options = Array.from(
+    new Set(
+      state.projects
+        .map((project) => project.currentStage)
+        .filter(Boolean)
+        .filter((option) => !hiddenDemandOptions.has(normalizeText(option)))
+    )
+  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
 
   demandFilterEl.innerHTML = [
     '<option value="">Todas as demandas</option>',
