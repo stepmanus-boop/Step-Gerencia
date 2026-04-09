@@ -62,8 +62,8 @@ body.modal-open { overflow: hidden; }
 
 .brand-logo {
   width: 100%;
-  max-width: 235px;
-  max-height: 88px;
+  max-width: 205px;
+  max-height: 72px;
   object-fit: contain;
 }
 
@@ -103,7 +103,7 @@ body.modal-open { overflow: hidden; }
 }
 
 .clock-card {
-  padding: 10px 12px 12px;
+  padding: 14px 10px 12px;
   display: grid;
   align-content: center;
   justify-items: center;
@@ -134,14 +134,15 @@ body.modal-open { overflow: hidden; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
-  font-size: clamp(22px, 1.55vw, 34px);
+  font-size: clamp(18px, 1.18vw, 28px);
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   letter-spacing: 0;
 }
 
 .clock-date {
   color: #d9ecff;
-  font-size: 12px;
+  font-size: 11px;
   text-align: center;
   width: 100%;
   white-space: nowrap;
@@ -520,4 +521,12 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 1550px) {
   .topbar { grid-template-columns: 230px minmax(0, 1fr) 390px; }
   .clock-time { font-size: clamp(20px, 1.45vw, 30px); }
+}
+
+
+.clock-card { min-height: 112px; }
+.clock-grid { align-items: stretch; }
+@media (max-width: 1500px) {
+  .topbar { grid-template-columns: 220px minmax(0, 1fr) 400px; }
+  .clock-time { font-size: clamp(18px, 1.12vw, 26px); }
 }
