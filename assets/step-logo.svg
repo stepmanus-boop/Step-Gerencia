@@ -1,0 +1,19 @@
+<svg width="760" height="200" viewBox="0 0 760 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#34B7FF"/>
+      <stop offset="100%" stop-color="#1274D8"/>
+    </linearGradient>
+  </defs>
+  <rect width="760" height="200" rx="28" fill="none"/>
+  <g transform="translate(8,14)">
+    <path d="M34 42C34 31 43 22 54 22H175L128 56H34V42Z" fill="url(#g)"/>
+    <path d="M43 72H133L84 105H20C20 96 23 88 29 82L43 72Z" fill="url(#g)"/>
+    <path d="M88 120H150L93 160L46 133L88 120Z" fill="url(#g)"/>
+    <path d="M160 22H301L268 56H160V22Z" fill="url(#g)"/>
+    <path d="M160 72H289C313 72 329 82 329 102C329 120 313 132 288 132H240V172H160V138H110L161 104H236C244 104 249 101 249 95C249 89 244 86 236 86H160V72Z" fill="url(#g)"/>
+    <path d="M352 22H518V56H432V80H504V112H432V172H352V22Z" fill="white"/>
+    <path d="M536 22H734V58H650V80H724V114H650V136H734V172H536V22Z" fill="white"/>
+    <text x="160" y="194" font-family="Arial, Helvetica, sans-serif" font-size="30" letter-spacing="8" fill="#D8E8F8">INTEGRATED SOLUTIONS</text>
+  </g>
+</svg>
