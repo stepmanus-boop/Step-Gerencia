@@ -115,99 +115,6 @@ function getCurrentProductionWeekLabel() {
   return getProductionWeekLabelFromDate(getCurrentBrazilDate());
 }
 
-function parseDateString(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return null;
-  let match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (match) {
-    const day = Number(match[1]);
-    const month = Number(match[2]) - 1;
-    const year = Number(match[3]);
-    return new Date(Date.UTC(year, month, day));
-  }
-  match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (match) {
-    const year = Number(match[1]);
-    const month = Number(match[2]) - 1;
-    const day = Number(match[3]);
-    return new Date(Date.UTC(year, month, day));
-  }
-  const date = new Date(raw);
-  if (!Number.isNaN(date.getTime())) {
-    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  }
-  return null;
-}
-
-function getMilestoneValue(entity, milestoneKey) {
-  return (entity?.milestones || []).find((item) => item.key === milestoneKey)?.value || "";
-}
-
-function inferSpoolWeldingInfo(spool) {
-  const milestoneDate = parseDateString(getMilestoneValue(spool, "Welding Finish Date"));
-  const finished = spool.finished || spool.uiState === "completed" || spool.uiState === "awaiting_shipment";
-  const weldedWeightKg = spool.weldedWeightKg ?? (milestoneDate || finished ? (spool.kilos || 0) : 0);
-  const weldingWeek = spool.weldingWeek || (milestoneDate ? getProductionWeekLabelFromDate(milestoneDate) : "");
-  return {
-    ...spool,
-    weldedWeightKg,
-    weldingWeek,
-  };
-}
-
-function buildDerivedStats(projects, upstreamStats) {
-  const stats = {
-    totalProjects: upstreamStats?.totalProjects ?? projects.length,
-    totalSpools: upstreamStats?.totalSpools ?? 0,
-    totalWeightKg: upstreamStats?.totalWeightKg ?? 0,
-    totalWeldedWeightKg: upstreamStats?.totalWeldedWeightKg ?? 0,
-    totalPaintingM2: upstreamStats?.totalPaintingM2 ?? 0,
-    completed: upstreamStats?.completed ?? 0,
-    inProgress: upstreamStats?.inProgress ?? 0,
-    notStarted: upstreamStats?.notStarted ?? 0,
-    averageOverallProgress: upstreamStats?.averageOverallProgress ?? 0,
-  };
-
-  let progressAccumulator = 0;
-  let sawTotalWeight = Number.isFinite(upstreamStats?.totalWeightKg);
-  let sawWeldedWeight = Number.isFinite(upstreamStats?.totalWeldedWeightKg);
-  let sawPainting = Number.isFinite(upstreamStats?.totalPaintingM2);
-  let sawTotalSpools = Number.isFinite(upstreamStats?.totalSpools);
-
-  if (!(Number.isFinite(upstreamStats?.completed) && Number.isFinite(upstreamStats?.inProgress) && Number.isFinite(upstreamStats?.notStarted))) {
-    stats.completed = 0;
-    stats.inProgress = 0;
-    stats.notStarted = 0;
-  }
-
-  if (!Number.isFinite(upstreamStats?.averageOverallProgress)) {
-    stats.averageOverallProgress = 0;
-  }
-
-  for (const project of projects) {
-    if (!sawTotalSpools) stats.totalSpools += project.quantitySpools || 0;
-    if (!sawTotalWeight) stats.totalWeightKg += project.kilos || 0;
-    if (!sawWeldedWeight) stats.totalWeldedWeightKg += project.weldedWeightKg || 0;
-    if (!sawPainting) stats.totalPaintingM2 += project.m2Painting || 0;
-
-    if (!(Number.isFinite(upstreamStats?.completed) && Number.isFinite(upstreamStats?.inProgress) && Number.isFinite(upstreamStats?.notStarted))) {
-      if (["completed", "awaiting_shipment"].includes(project.uiState)) stats.completed += 1;
-      else if (project.uiState === "in_progress") stats.inProgress += 1;
-      else stats.notStarted += 1;
-    }
-
-    if (!Number.isFinite(upstreamStats?.averageOverallProgress)) {
-      progressAccumulator += project.overallProgress || 0;
-    }
-  }
-
-  if (!Number.isFinite(upstreamStats?.averageOverallProgress)) {
-    stats.averageOverallProgress = projects.length ? progressAccumulator / projects.length : 0;
-  }
-
-  return stats;
-}
-
 function parseWeekLabel(label) {
   const text = String(label || "").trim();
   const weekMatch = text.match(/Semana\s+(\d+)/i);
@@ -308,28 +215,17 @@ function startClocks() {
 
 function enrichProjects(projects) {
   return (projects || []).map((project) => {
-    const spools = (project.spools || []).map(inferSpoolWeldingInfo);
-    const derivedWeldedWeight = spools.reduce((total, spool) => total + (spool.weldedWeightKg || 0), 0);
-    const derivedWeekDates = spools
-      .map((spool) => ({ label: spool.weldingWeek, date: parseDateString(getMilestoneValue(spool, "Welding Finish Date")) }))
-      .filter((item) => item.label && item.date);
-    derivedWeekDates.sort((a, b) => b.date - a.date);
-
-    const projectWeldingDate = parseDateString(getMilestoneValue(project, "Welding Finish Date"));
     const searchParts = [
       project.projectDisplay,
       project.projectNumber,
       project.projectPrefix,
       project.currentStage,
       project.projectStatus,
-      ...(spools || []).flatMap((spool) => [spool.iso, spool.description, spool.drawing]),
+      ...(project.spools || []).flatMap((spool) => [spool.iso, spool.description, spool.drawing]),
     ];
 
     return {
       ...project,
-      spools,
-      weldedWeightKg: project.weldedWeightKg ?? derivedWeldedWeight,
-      weldingWeek: project.weldingWeek || (projectWeldingDate ? getProductionWeekLabelFromDate(projectWeldingDate) : derivedWeekDates[0]?.label || ""),
       _searchText: normalizeText(searchParts.filter(Boolean).join(" | ")),
     };
   });
@@ -378,11 +274,6 @@ function getActiveWeekLabel() {
 function getWeldedWeightForWeek(weekLabel) {
   if (!weekLabel) return 0;
   return state.projects.reduce((total, project) => {
-    const spoolWeight = (project.spools || []).reduce((acc, spool) => {
-      if (spool.weldingWeek !== weekLabel) return acc;
-      return acc + (spool.weldedWeightKg || 0);
-    }, 0);
-    if (spoolWeight > 0) return total + spoolWeight;
     if (project.weldingWeek !== weekLabel) return total;
     return total + (project.weldedWeightKg || 0);
   }, 0);
@@ -641,46 +532,17 @@ function updateMeta() {
   footerVersionEl.textContent = `Versão da sheet: ${state.meta.version}`;
 }
 
-async function fetchProjectsPayload() {
-  const sources = [];
-  const isGitHubPages = window.location.hostname.endsWith("github.io");
-
-  if (!isGitHubPages) {
-    sources.push("/api/projects");
-  }
-
-  sources.push("./projects.json");
-
-  if (isGitHubPages) {
-    sources.push("projects.json");
-  }
-
-  let lastError = null;
-
-  for (const source of sources) {
-    try {
-      const response = await fetch(source, { cache: "no-store" });
-      if (!response.ok) {
-        throw new Error(`Falha ao carregar dados (${response.status})`);
-      }
-      const data = await response.json();
-      if (!data?.ok) {
-        throw new Error(data?.error || "Falha ao carregar projetos.");
-      }
-      return data;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError || new Error("Falha ao carregar projetos.");
-}
-
 async function loadProjects() {
   try {
-    const data = await fetchProjectsPayload();
+    const response = await fetch("/api/projects");
+    const data = await response.json();
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || "Falha ao carregar projetos.");
+    }
+
     state.projects = enrichProjects(data.projects || []);
-    state.stats = buildDerivedStats(state.projects, data.stats || null);
+    state.stats = data.stats || null;
     state.meta = data.meta || null;
     buildDemandOptions();
     buildWeekOptions();
