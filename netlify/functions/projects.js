@@ -141,6 +141,66 @@ function formatDateValue(value) {
   return raw;
 }
 
+
+function parseDateObject(value) {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  let match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const year = Number(match[3]);
+    return new Date(Date.UTC(year, month, day));
+  }
+
+  match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    return new Date(Date.UTC(year, month, day));
+  }
+
+  const date = new Date(raw);
+  if (!Number.isNaN(date.getTime())) {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  }
+
+  return null;
+}
+
+function getWeekAnchor(year) {
+  const jan1 = new Date(Date.UTC(year, 0, 1));
+  const anchor = new Date(jan1);
+  anchor.setUTCDate(jan1.getUTCDate() - jan1.getUTCDay());
+  return anchor;
+}
+
+function getProductionWeekLabel(value) {
+  const date = parseDateObject(value);
+  if (!date) return "";
+
+  let weekYear = date.getUTCFullYear();
+  const nextAnchor = getWeekAnchor(weekYear + 1);
+  if (date >= nextAnchor) {
+    weekYear += 1;
+  } else {
+    const currentAnchor = getWeekAnchor(weekYear);
+    if (date < currentAnchor) weekYear -= 1;
+  }
+
+  const anchor = getWeekAnchor(weekYear);
+  const diffDays = Math.floor((date - anchor) / 86400000);
+  const weekNumber = Math.floor(diffDays / 7) + 1;
+  return `Semana ${weekNumber}`;
+}
+
 function hasDateValue(row, key) {
   const value = textValue(row, key);
   return Boolean(value && String(value).trim());
@@ -305,6 +365,16 @@ function buildSpoolRow(row, parentSummary) {
   const awaitingShipment = isAwaitingShipment(row);
   const fabricationStartDate = textValue(row, "Fabrication Start Date");
   const uiState = projectUiState(textValue(row, "PROJECT STATUS"), overallProgress, finished, fabricationStartDate, awaitingShipment);
+  const weldingPercent = parsePercent(row, "Full welding execution") ?? 0;
+  const weldingFinishDate = textValue(row, "Welding Finish Date");
+  const weldedWeightKg = (() => {
+    const kilos = parseNumber(row, "Kilos");
+    if (kilos == null) return null;
+    if (weldingPercent >= 100) return kilos;
+    if (weldingPercent > 0) return (kilos * weldingPercent) / 100;
+    return 0;
+  })();
+  const weldingWeek = weldingPercent >= 100 && weldingFinishDate ? getProductionWeekLabel(weldingFinishDate) : "";
 
   return {
     rowId: row.id,
@@ -314,6 +384,8 @@ function buildSpoolRow(row, parentSummary) {
     drawing: drawingText,
     observations: textValue(row, "OBSERVATIONS"),
     kilos: parseNumber(row, "Kilos"),
+    weldedWeightKg,
+    weldingWeek,
     m2Painting: parseNumber(row, "M2 Painting"),
     stage: progress.currentStage.label,
     stagePercent: progress.currentStage.percent,
@@ -339,7 +411,17 @@ function buildProject(summaryRow, childRows) {
   const awaitingShipment = isAwaitingShipment(summaryRow);
   const fabricationStartDate = textValue(summaryRow, "Fabrication Start Date");
   const uiState = projectUiState(projectStatus, overallProgress, finished, fabricationStartDate, awaitingShipment);
+  const weldingPercent = parsePercent(summaryRow, "Full welding execution") ?? 0;
+  const weldingFinishDate = textValue(summaryRow, "Welding Finish Date");
   const spools = childRows.map((row) => buildSpoolRow(row, summaryRow));
+  const weldedWeightKg = (() => {
+    const kilos = parseNumber(summaryRow, "Kilos");
+    if (kilos == null) return null;
+    if (weldingPercent >= 100) return kilos;
+    if (weldingPercent > 0) return (kilos * weldingPercent) / 100;
+    return 0;
+  })();
+  const weldingWeek = weldingPercent >= 100 && weldingFinishDate ? getProductionWeekLabel(weldingFinishDate) : "";
 
   const spoolStats = spools.reduce((acc, spool) => {
     acc.total += 1;
@@ -357,6 +439,8 @@ function buildProject(summaryRow, childRows) {
     projectDisplay: parts.display || projectText,
     quantitySpools: parseNumber(summaryRow, "Quantity Spools") ?? spools.length,
     kilos: parseNumber(summaryRow, "Kilos"),
+    weldedWeightKg,
+    weldingWeek,
     m2Painting: parseNumber(summaryRow, "M2 Painting"),
     currentStage: progress.currentStage.label,
     currentStagePercent: progress.currentStage.percent,
@@ -466,6 +550,7 @@ function buildStats(projects) {
     totalProjects: projects.length,
     totalSpools: 0,
     totalWeightKg: 0,
+    totalWeldedWeightKg: 0,
     totalPaintingM2: 0,
     completed: 0,
     inProgress: 0,
@@ -478,6 +563,7 @@ function buildStats(projects) {
   for (const project of projects) {
     stats.totalSpools += project.quantitySpools || 0;
     stats.totalWeightKg += project.kilos || 0;
+    stats.totalWeldedWeightKg += project.weldedWeightKg || 0;
     stats.totalPaintingM2 += project.m2Painting || 0;
     progressAccumulator += project.overallProgress || 0;
 

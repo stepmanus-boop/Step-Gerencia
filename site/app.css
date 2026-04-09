@@ -77,7 +77,7 @@ body.modal-open { overflow: hidden; }
 .eyebrow {
   margin: 0 0 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.22em;
 }
 

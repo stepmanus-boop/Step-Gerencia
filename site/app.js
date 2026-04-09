@@ -192,7 +192,7 @@ function getSelectedProject() {
 function renderStats() {
   if (!state.stats) return;
   document.getElementById("stat-projects").textContent = formatNumber(state.stats.totalProjects);
-  document.getElementById("stat-spools").textContent = formatNumber(state.stats.totalSpools);
+  document.getElementById("stat-spools").textContent = `${formatNumber(state.stats.totalWeldedWeightKg, 0)} kg`;
   document.getElementById("stat-total-weight").textContent = `${formatNumber(state.stats.totalWeightKg, 0)} kg`;
   
   document.getElementById("stat-completed").textContent = formatNumber(state.stats.completed);
@@ -203,7 +203,7 @@ function renderStats() {
 
 function renderTable() {
   if (!state.filteredProjects.length) {
-    bodyEl.innerHTML = '<tr><td colspan="14" class="loading-cell">Nenhum projeto encontrado para a busca informada.</td></tr>';
+    bodyEl.innerHTML = '<tr><td colspan="16" class="loading-cell">Nenhum projeto encontrado para a busca informada.</td></tr>';
     searchCountEl.textContent = "0 resultado(s)";
     return;
   }
@@ -231,6 +231,8 @@ function renderTable() {
         <tr class="${rowClass}" data-project-id="${project.rowId}">
           <td>${project.projectDisplay}</td>
           <td>${formatNumber(project.quantitySpools)}</td>
+          <td>${formatNumber(project.weldedWeightKg, 0)}</td>
+          <td>${project.weldingWeek || "—"}</td>
           <td>${formatNumber(project.kilos, 2)}</td>
           <td>${formatNumber(project.m2Painting, 3)}</td>
           <td>
@@ -276,6 +278,8 @@ function renderSelectedProjectCard() {
 
       <div class="detail-grid compact-grid">
         <div class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></div>
+        <div class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></div>
+        <div class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></div>
         <div class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 2)}</strong></div>
         <div class="metric-chip"><span>Painting</span><strong>${formatNumber(project.m2Painting, 3)}</strong></div>
         <div class="metric-chip"><span>% Individual</span><strong>${formatPercent(project.individualProgress)}</strong></div>
@@ -351,6 +355,8 @@ function renderModal(project) {
   modalContentEl.innerHTML = `
     <section class="modal-summary-grid">
       <article class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></article>
+      <article class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></article>
+      <article class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></article>
       <article class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 2)}</strong></article>
       <article class="metric-chip"><span>Painting total</span><strong>${formatNumber(project.m2Painting, 3)}</strong></article>
       <article class="metric-chip"><span>% Individual</span><strong>${formatPercent(project.individualProgress)}</strong></article>
@@ -369,6 +375,8 @@ function renderModal(project) {
             <th>ISO</th>
             <th>Descrição</th>
             <th>Observações</th>
+            <th>Peso soldado</th>
+            <th>Semana finalizado</th>
             <th>Peso</th>
             <th>Painting</th>
             <th>Status</th>
@@ -433,7 +441,7 @@ async function loadProjects() {
     renderSelectedProjectCard();
     updateMeta();
   } catch (error) {
-    bodyEl.innerHTML = `<tr><td colspan="14" class="loading-cell">${error.message}</td></tr>`;
+    bodyEl.innerHTML = `<tr><td colspan="16" class="loading-cell">${error.message}</td></tr>`;
     detailCardEl.innerHTML = `<div class="detail-placeholder">${error.message}</div>`;
   }
 }
