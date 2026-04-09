@@ -220,14 +220,15 @@ body.modal-open { overflow: hidden; }
 
 .search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(280px, 1.2fr) minmax(240px, 0.9fr) auto auto;
   gap: 10px;
   padding: 12px 16px;
   align-items: end;
   border-bottom: 1px solid rgba(85, 145, 255, 0.12);
 }
 
-.search-box {
+.search-box,
+.filter-box {
   display: grid;
   gap: 6px;
 }
@@ -237,7 +238,8 @@ body.modal-open { overflow: hidden; }
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.search-box input {
+.search-box input,
+.filter-box select {
   height: 44px;
   border-radius: 12px;
   border: 1px solid rgba(85, 145, 255, 0.22);
@@ -247,7 +249,9 @@ body.modal-open { overflow: hidden; }
   font-size: 16px;
   outline: none;
 }
-.search-box input:focus { border-color: rgba(0, 200, 255, 0.5); box-shadow: 0 0 0 3px rgba(0, 200, 255, 0.08); }
+.search-box input:focus,
+.filter-box select:focus { border-color: rgba(0, 200, 255, 0.5); box-shadow: 0 0 0 3px rgba(0, 200, 255, 0.08); }
+.filter-box select { appearance: none; }
 .ghost-button,
 .primary-button {
   height: 44px;
@@ -263,12 +267,26 @@ body.modal-open { overflow: hidden; }
   background: linear-gradient(180deg, rgba(0, 200, 255, 0.18), rgba(0, 123, 255, 0.2));
   color: #dff7ff;
 }
+
 .search-count {
   min-width: 110px;
   color: var(--muted);
   font-size: 12px;
   align-self: center;
   text-align: right;
+}
+
+.search-row {
+  background: linear-gradient(180deg, rgba(5, 20, 36, 0.95), rgba(4, 14, 25, 0.95));
+}
+
+.search-box input::placeholder {
+  color: #7ba2c5;
+}
+
+
+.search-count {
+  font-weight: 700;
 }
 
 .table-shell {

@@ -141,6 +141,19 @@ function formatDateValue(value) {
   return raw;
 }
 
+function hasDateValue(row, key) {
+  const value = textValue(row, key);
+  return Boolean(value && String(value).trim());
+}
+
+function isAwaitingShipment(row) {
+  const coatingPercent = parsePercent(row, "Surface preparation and/or coating") ?? 0;
+  const coatingDone = coatingPercent >= 100 || hasDateValue(row, "Coating Finish Date") || hasDateValue(row, "HDG / FBE DATE RETORNO (PAINT)");
+  const packageDelivered = parsePercent(row, "Package and Delivered") ?? 0;
+  const projectFinished = isTruthyValue(textValue(row, "Project Finished?") || getCellValue(row, "Project Finished?").raw);
+  return coatingDone && packageDelivered < 100 && !projectFinished;
+}
+
 function parseProjectParts(projectText) {
   const cleaned = String(projectText || "").trim().replace(/\s+/g, " ");
   if (!cleaned) return { prefix: "", number: "", display: "" };
@@ -253,8 +266,10 @@ function deriveProgress(row) {
   return { currentStage, completedStages, milestones };
 }
 
-function projectUiState(projectStatus, overallProgress, finished) {
+function projectUiState(projectStatus, overallProgress, finished, fabricationStartDate, awaitingShipment = false) {
+  if (awaitingShipment) return "awaiting_shipment";
   if (finished || overallProgress >= 100) return "completed";
+  if (!fabricationStartDate) return "not_started";
   if (overallProgress <= 0 && /^on hold$/i.test(projectStatus || "")) return "not_started";
   if (overallProgress <= 0) return "not_started";
   return "in_progress";
@@ -287,7 +302,9 @@ function buildSpoolRow(row, parentSummary) {
   const overallProgress = parsePercent(row, "% Overall Progress") ?? parsePercent(parentSummary, "% Overall Progress") ?? 0;
   const individualProgress = parsePercent(row, "% Individual Progress") ?? overallProgress;
   const finished = isTruthyValue(getCellValue(row, "Project Finished?").raw) || overallProgress >= 100 || (parsePercent(row, "Package and Delivered") ?? 0) >= 100;
-  const uiState = projectUiState(textValue(row, "PROJECT STATUS"), overallProgress, finished);
+  const awaitingShipment = isAwaitingShipment(row);
+  const fabricationStartDate = textValue(row, "Fabrication Start Date");
+  const uiState = projectUiState(textValue(row, "PROJECT STATUS"), overallProgress, finished, fabricationStartDate, awaitingShipment);
 
   return {
     rowId: row.id,
@@ -305,7 +322,7 @@ function buildSpoolRow(row, parentSummary) {
     overallProgress,
     milestones: progress.milestones,
     stageValues: buildStageValues(row),
-    finished,
+    finished: finished || awaitingShipment,
     uiState,
   };
 }
@@ -318,7 +335,9 @@ function buildProject(summaryRow, childRows) {
   const individualProgress = parsePercent(summaryRow, "% Individual Progress") ?? overallProgress;
   const finished = isTruthyValue(getCellValue(summaryRow, "Project Finished?").raw) || overallProgress >= 100 || (parsePercent(summaryRow, "Package and Delivered") ?? 0) >= 100;
   const projectStatus = textValue(summaryRow, "PROJECT STATUS") || textValue(summaryRow, "Overall Project Status") || textValue(summaryRow, "Status");
-  const uiState = projectUiState(projectStatus, overallProgress, finished);
+  const awaitingShipment = isAwaitingShipment(summaryRow);
+  const fabricationStartDate = textValue(summaryRow, "Fabrication Start Date");
+  const uiState = projectUiState(projectStatus, overallProgress, finished, fabricationStartDate, awaitingShipment);
   const spools = childRows.map((row) => buildSpoolRow(row, summaryRow));
 
   const spoolStats = spools.reduce((acc, spool) => {
@@ -353,7 +372,7 @@ function buildProject(summaryRow, childRows) {
     className: textValue(summaryRow, "Class"),
     milestones: progress.milestones,
     stageValues: buildStageValues(summaryRow),
-    finished,
+    finished: finished || awaitingShipment,
     uiState,
     spools,
     spoolStats,
@@ -461,7 +480,7 @@ function buildStats(projects) {
     stats.totalPaintingM2 += project.m2Painting || 0;
     progressAccumulator += project.overallProgress || 0;
 
-    if (project.uiState === "completed") stats.completed += 1;
+    if (["completed", "awaiting_shipment"].includes(project.uiState)) stats.completed += 1;
     else if (project.uiState === "in_progress") stats.inProgress += 1;
     else stats.notStarted += 1;
   }

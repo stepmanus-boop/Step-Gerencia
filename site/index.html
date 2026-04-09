@@ -76,7 +76,7 @@
           <div class="panel-head">
             <div>
               <h2>Projetos</h2>
-              <p>Busca por projeto, spool ou ISO. Clique em uma linha para abrir o detalhamento completo.</p>
+              
             </div>
             <div class="panel-meta">
               <span id="sheet-name">Smartsheet</span>
@@ -86,8 +86,14 @@
 
           <div class="search-row">
             <label class="search-box" for="project-search">
-              <span class="search-label">Buscar</span>
-              <input id="project-search" type="text" placeholder="Ex.: BSP 24-325-02" autocomplete="off" />
+              <span class="search-label">Buscar projeto, item ou referência</span>
+              <input id="project-search" type="text" placeholder="Ex.: BSP 24-325-02, 2432502 ou ISO interno" autocomplete="off" />
+            </label>
+            <label class="filter-box" for="demand-filter">
+              <span class="search-label">Filtrar demanda</span>
+              <select id="demand-filter">
+                <option value="">Todas as demandas</option>
+              </select>
             </label>
             <button id="clear-search" class="ghost-button" type="button">Limpar</button>
             <div class="search-count" id="search-count">-- resultado(s)</div>
