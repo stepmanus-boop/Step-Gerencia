@@ -172,7 +172,7 @@ img {
 
 .summary-row {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -188,7 +188,7 @@ img {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .summary-subtext {
@@ -200,7 +200,7 @@ img {
 }
 
 .summary-card strong {
-  font-size: clamp(26px, 2vw, 42px);
+  font-size: clamp(24px, 1.7vw, 36px);
   line-height: 1;
 }
 
@@ -249,7 +249,7 @@ img {
 .panel-head p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .panel-meta {
@@ -257,7 +257,7 @@ img {
   display: grid;
   gap: 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .autoplay-pill {
@@ -503,7 +503,7 @@ img {
 
 .current-stage-meta {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .detail-grid {
@@ -586,7 +586,7 @@ img {
 
 .spool-page-indicator {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .spool-table-wrap {
@@ -626,7 +626,7 @@ img {
   align-items: center;
   padding: 0 16px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 ::-webkit-scrollbar {

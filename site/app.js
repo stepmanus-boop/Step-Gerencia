@@ -102,6 +102,7 @@ function renderStats() {
   if (!state.stats) return;
   document.getElementById("stat-projects").textContent = formatNumber(state.stats.totalProjects);
   document.getElementById("stat-spools").textContent = formatNumber(state.stats.totalSpools);
+  document.getElementById("stat-total-weight").textContent = `${formatNumber(state.stats.totalWeightKg, 2)} kg`;
   document.getElementById("stat-completed").textContent = formatNumber(state.stats.completed);
   document.getElementById("stat-in-progress").textContent = formatNumber(state.stats.inProgress);
   document.getElementById("stat-not-started").textContent = formatNumber(state.stats.notStarted);
