@@ -253,7 +253,11 @@ function buildWeekOptions() {
   const weekLabels = Array.from(
     new Set([
       currentWeek,
-      ...state.projects.map((project) => project.weldingWeek).filter(Boolean),
+      ...state.projects.flatMap((project) => {
+        const spoolWeeks = (project.spools || []).map((spool) => spool.weldingWeek).filter(Boolean);
+        if (spoolWeeks.length) return spoolWeeks;
+        return project.weldingWeek ? [project.weldingWeek] : [];
+      }),
     ])
   ).sort(compareWeekLabels);
 
@@ -274,6 +278,14 @@ function getActiveWeekLabel() {
 function getWeldedWeightForWeek(weekLabel) {
   if (!weekLabel) return 0;
   return state.projects.reduce((total, project) => {
+    const spools = project.spools || [];
+    if (spools.length) {
+      return total + spools.reduce((spoolTotal, spool) => {
+        if (spool.weldingWeek !== weekLabel) return spoolTotal;
+        return spoolTotal + (spool.weldedWeightKg || 0);
+      }, 0);
+    }
+
     if (project.weldingWeek !== weekLabel) return total;
     return total + (project.weldedWeightKg || 0);
   }, 0);

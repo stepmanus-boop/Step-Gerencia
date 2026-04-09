@@ -222,7 +222,7 @@ function hasDateValue(row, key) {
 
 function isAwaitingShipment(row) {
   const coatingPercent = parsePercent(row, "Surface preparation and/or coating") ?? 0;
-  const coatingDone = coatingPercent >= 100 || hasDateValue(row, "Coating Finish Date") || hasDateValue(row, "HDG / FBE DATE RETORNO (PAINT)");
+  const coatingDone = coatingPercent >= 100;
   const packageDelivered = parsePercent(row, "Package and Delivered") ?? 0;
   const projectFinished = isTruthyValue(textValue(row, "Project Finished?") || getCellValue(row, "Project Finished?").raw);
   return coatingDone && packageDelivered < 100 && !projectFinished;
@@ -428,13 +428,16 @@ function buildProject(summaryRow, childRows) {
   const weldingPercent = parsePercent(summaryRow, "Full welding execution") ?? 0;
   const weldingFinishDate = textValue(summaryRow, "Welding Finish Date");
   const spools = childRows.map((row) => buildSpoolRow(row, summaryRow));
-  const weldedWeightKg = (() => {
+  const summaryWeldedWeightKg = (() => {
     const kilos = parseNumber(summaryRow, "Kilos");
     if (kilos == null) return null;
     if (weldingPercent >= 100) return kilos;
     if (weldingPercent > 0) return (kilos * weldingPercent) / 100;
     return 0;
   })();
+  const weldedWeightKg = spools.length
+    ? spools.reduce((total, spool) => total + (spool.weldingWeek ? (spool.weldedWeightKg || 0) : 0), 0)
+    : summaryWeldedWeightKg;
   const weldingWeek = weldingPercent >= 100 && weldingFinishDate ? getProductionWeekLabel(weldingFinishDate) : "";
 
   const spoolStats = spools.reduce((acc, spool) => {
