@@ -33,6 +33,7 @@ const alertModalEl = document.getElementById("alert-modal");
 const alertModalContentEl = document.getElementById("alert-modal-content");
 const alertModalCloseEl = document.getElementById("alert-modal-close");
 const alertBadgeCountEl = document.getElementById("alert-badge-count");
+const openAlertsButtonEl = document.getElementById("open-alerts-button");
 
 function formatNumber(value, fractionDigits = 0) {
   if (value == null || Number.isNaN(value)) return "—";
@@ -578,7 +579,13 @@ function persistAlertDismiss() {
 
 function renderAlertBadge() {
   if (!alertBadgeCountEl) return;
-  alertBadgeCountEl.textContent = String(state.alerts.length || 0);
+  const totalAlerts = state.alerts.length || 0;
+  alertBadgeCountEl.textContent = String(totalAlerts);
+  if (openAlertsButtonEl) {
+    openAlertsButtonEl.disabled = totalAlerts === 0;
+    openAlertsButtonEl.classList.toggle("alert-badge--empty", totalAlerts === 0);
+    openAlertsButtonEl.title = totalAlerts === 0 ? "Nenhum alerta ativo no momento" : "Clique para abrir os alertas";
+  }
 }
 
 function renderAlertModal() {
@@ -752,6 +759,13 @@ function bindEvents() {
       if (event.target.matches("[data-close-alert='true']")) {
         closeAlertModal();
       }
+    });
+  }
+
+  if (openAlertsButtonEl) {
+    openAlertsButtonEl.addEventListener("click", () => {
+      renderAlertModal();
+      openAlertModal(true);
     });
   }
 
