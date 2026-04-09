@@ -594,6 +594,7 @@ function buildProjects(rows) {
 function getProjectAlert(project, today = getCurrentBrazilDateObject()) {
   const plannedFinish = parseDateObject(project.plannedFinishDate);
   if (!plannedFinish) return null;
+  if (!project.fabricationStartDate) return null;
 
   const diffDays = Math.floor((plannedFinish - today) / 86400000);
   const coatingPercent = Number(project.coatingPercent || 0);
