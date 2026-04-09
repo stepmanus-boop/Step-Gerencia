@@ -46,7 +46,7 @@
         </article>
         <article class="summary-card">
           <span class="summary-label">Peso total soldado</span>
-          <span class="summary-subtext">Semana por solda finalizada</span>
+          <span class="summary-subtext" id="stat-current-week">Semana atual</span>
           <strong id="stat-spools">--</strong>
         </article>
         <article class="summary-card">
@@ -93,6 +93,12 @@
               <span class="search-label">Filtrar demanda</span>
               <select id="demand-filter">
                 <option value="">Todas as demandas</option>
+              </select>
+            </label>
+            <label class="filter-box" for="week-filter">
+              <span class="search-label">Filtrar semana</span>
+              <select id="week-filter">
+                <option value="">Todas as semanas</option>
               </select>
             </label>
             <button id="clear-search" class="ghost-button" type="button">Limpar</button>

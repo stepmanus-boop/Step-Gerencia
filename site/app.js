@@ -7,6 +7,7 @@ const state = {
   meta: null,
   searchQuery: "",
   demandFilter: "",
+  weekFilter: "",
   selectedProjectId: null,
   pollTimer: null,
 };
@@ -19,6 +20,7 @@ const footerVersionEl = document.getElementById("footer-version");
 const searchInputEl = document.getElementById("project-search");
 const clearSearchEl = document.getElementById("clear-search");
 const demandFilterEl = document.getElementById("demand-filter");
+const weekFilterEl = document.getElementById("week-filter");
 const searchCountEl = document.getElementById("search-count");
 const tableShellEl = document.getElementById("table-shell");
 const modalEl = document.getElementById("project-modal");
@@ -59,6 +61,53 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function getWeekAnchor(year) {
+  const jan1 = new Date(Date.UTC(year, 0, 1));
+  const anchor = new Date(jan1);
+  anchor.setUTCDate(jan1.getUTCDate() - jan1.getUTCDay());
+  return anchor;
+}
+
+function getProductionWeekLabelFromDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  let weekYear = date.getUTCFullYear();
+  const nextAnchor = getWeekAnchor(weekYear + 1);
+  if (date >= nextAnchor) {
+    weekYear += 1;
+  } else {
+    const currentAnchor = getWeekAnchor(weekYear);
+    if (date < currentAnchor) weekYear -= 1;
+  }
+
+  const anchor = getWeekAnchor(weekYear);
+  const diffDays = Math.floor((date - anchor) / 86400000);
+  const weekNumber = Math.floor(diffDays / 7) + 1;
+  return `Semana ${weekNumber}`;
+}
+
+function getCurrentBrazilDate() {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = Number(parts.find((item) => item.type === "year")?.value);
+  const month = Number(parts.find((item) => item.type === "month")?.value);
+  const day = Number(parts.find((item) => item.type === "day")?.value);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function getCurrentProductionWeekLabel() {
+  return getProductionWeekLabelFromDate(getCurrentBrazilDate());
+}
+
+function getWeekNumber(label) {
+  const match = String(label || "").match(/(\d+)/);
+  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
 }
 
 function uiStateLabel(stateValue) {
@@ -170,14 +219,37 @@ function buildDemandOptions() {
   if (!options.includes(selected)) state.demandFilter = "";
 }
 
+function buildWeekOptions() {
+  if (!weekFilterEl) return;
+  const selected = state.weekFilter || "";
+  const currentWeek = getCurrentProductionWeekLabel();
+  const weekLabels = Array.from(new Set(state.projects.map((project) => project.weldingWeek).filter(Boolean)))
+    .sort((a, b) => getWeekNumber(a) - getWeekNumber(b));
+
+  const options = [];
+  options.push('<option value="">Todas as semanas</option>');
+  options.push(`<option value="${currentWeek}">Semana atual (${currentWeek})</option>`);
+  for (const label of weekLabels) {
+    if (label === currentWeek) continue;
+    options.push(`<option value="${label}">${label}</option>`);
+  }
+
+  weekFilterEl.innerHTML = options.join("");
+  const validValues = [currentWeek, ...weekLabels];
+  weekFilterEl.value = validValues.includes(selected) ? selected : "";
+  if (!validValues.includes(selected)) state.weekFilter = "";
+}
+
 function applyFilter() {
   const query = normalizeText(state.searchQuery).trim();
   const demand = normalizeText(state.demandFilter).trim();
+  const week = normalizeText(state.weekFilter).trim();
 
   state.filteredProjects = state.projects.filter((project) => {
     const matchesQuery = !query || project._searchText.includes(query);
     const matchesDemand = !demand || normalizeText(project.currentStage).includes(demand) || normalizeText(translateProjectStatus(project.projectStatus, project.uiState)).includes(demand);
-    return matchesQuery && matchesDemand;
+    const matchesWeek = !week || normalizeText(project.weldingWeek).includes(week);
+    return matchesQuery && matchesDemand && matchesWeek;
   });
 
   if (!state.filteredProjects.find((project) => project.rowId === state.selectedProjectId)) {
@@ -430,6 +502,7 @@ async function loadProjects() {
     state.stats = data.stats || null;
     state.meta = data.meta || null;
     buildDemandOptions();
+    buildWeekOptions();
 
     if (!state.selectedProjectId && state.projects.length) {
       state.selectedProjectId = state.projects[0].rowId;
@@ -463,8 +536,10 @@ function bindEvents() {
   clearSearchEl.addEventListener("click", () => {
     state.searchQuery = "";
     state.demandFilter = "";
+    state.weekFilter = "";
     searchInputEl.value = "";
     if (demandFilterEl) demandFilterEl.value = "";
+    if (weekFilterEl) weekFilterEl.value = "";
     applyFilter();
     renderTable();
     renderSelectedProjectCard();
@@ -475,6 +550,16 @@ function bindEvents() {
   if (demandFilterEl) {
     demandFilterEl.addEventListener("change", (event) => {
       state.demandFilter = event.target.value;
+      applyFilter();
+      renderTable();
+      renderSelectedProjectCard();
+      tableShellEl.scrollTop = 0;
+    });
+  }
+
+  if (weekFilterEl) {
+    weekFilterEl.addEventListener("change", (event) => {
+      state.weekFilter = event.target.value;
       applyFilter();
       renderTable();
       renderSelectedProjectCard();
