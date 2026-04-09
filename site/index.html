@@ -76,7 +76,9 @@
           <div class="panel-head">
             <div>
               <h2>Projetos</h2>
-              
+              <div class="inline-status-row">
+                <span class="alert-badge">Alertas de prazo <strong id="alert-badge-count">0</strong></span>
+              </div>
             </div>
             <div class="panel-meta">
               <span id="sheet-name">Smartsheet</span>
@@ -170,6 +172,24 @@
         </div>
 
         <div id="modal-content" class="modal-content"></div>
+      </div>
+    </div>
+
+
+
+    <div id="alert-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close-alert="true"></div>
+      <div class="modal-dialog modal-dialog--alert" role="dialog" aria-modal="true" aria-labelledby="alert-modal-title">
+        <div class="modal-head modal-head--alert">
+          <div>
+            <p class="modal-eyebrow">Atenção</p>
+            <h3 id="alert-modal-title">Prazos em alerta</h3>
+            <p class="modal-subtitle">O alerta reaparece a cada 4 horas até que a planilha seja atualizada.</p>
+          </div>
+          <button id="alert-modal-close" class="modal-close" type="button" aria-label="Fechar alerta">×</button>
+        </div>
+
+        <div id="alert-modal-content" class="modal-content modal-content--alert"></div>
       </div>
     </div>
 

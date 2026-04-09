@@ -118,44 +118,58 @@ function isTruthyValue(value) {
   return ["true", "yes", "sim", "y", "1", "concluído", "concluido", "finalizado"].includes(normalized);
 }
 
+function excelSerialToDate(serial) {
+  if (!Number.isFinite(serial)) return null;
+  if (serial < 1 || serial > 90000) return null;
+  const excelEpoch = Date.UTC(1899, 11, 30);
+  const millis = excelEpoch + Math.round(serial) * 86400000;
+  const date = new Date(millis);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
 function formatDateValue(value) {
-  if (!value) return "";
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+  const parsedDate = parseDateObject(value);
+  if (parsedDate) {
+    return parsedDate.toLocaleDateString("pt-BR", { timeZone: "UTC" });
   }
 
+  if (!value) return "";
   const raw = String(value).trim();
   if (!raw) return "";
-
-  const simple = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (simple) return `${simple[3]}/${simple[2]}/${simple[1]}`;
-
-  const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (br) return raw;
-
-  const date = new Date(raw);
-  if (!Number.isNaN(date.getTime())) {
-    return date.toLocaleDateString("pt-BR", { timeZone: "UTC" });
-  }
-
   return raw;
 }
 
-
 function parseDateObject(value) {
-  if (!value) return null;
+  if (value == null || value === "") return null;
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
   }
 
+  if (typeof value === "number") {
+    return excelSerialToDate(value);
+  }
+
   const raw = String(value).trim();
   if (!raw) return null;
+
+  if (/^\d+(?:\.\d+)?$/.test(raw)) {
+    const numericDate = excelSerialToDate(Number(raw));
+    if (numericDate) return numericDate;
+  }
 
   let match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (match) {
     const day = Number(match[1]);
     const month = Number(match[2]) - 1;
     const year = Number(match[3]);
+    return new Date(Date.UTC(year, month, day));
+  }
+
+  match = raw.match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const year = Number(match[3]) >= 70 ? 1900 + Number(match[3]) : 2000 + Number(match[3]);
     return new Date(Date.UTC(year, month, day));
   }
 
@@ -182,18 +196,25 @@ function getWeekAnchor(year) {
   return anchor;
 }
 
-function getCurrentBrazilYear() {
+function getCurrentBrazilDateObject() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
     year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
-  return Number(parts.find((item) => item.type === "year")?.value || new Date().getUTCFullYear());
+  const year = Number(parts.find((item) => item.type === "year")?.value || new Date().getUTCFullYear());
+  const month = Number(parts.find((item) => item.type === "month")?.value || 1);
+  const day = Number(parts.find((item) => item.type === "day")?.value || 1);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function getCurrentBrazilYear() {
+  return getCurrentBrazilDateObject().getUTCFullYear();
 }
 
 function formatProductionWeekLabel(weekNumber, weekYear) {
-  return weekYear !== getCurrentBrazilYear()
-    ? `Semana ${weekNumber} - ${weekYear}`
-    : `Semana ${weekNumber}`;
+  return `Semana ${weekNumber} - ${weekYear}`;
 }
 
 function getProductionWeekLabel(value) {
@@ -379,6 +400,7 @@ function buildSpoolRow(row, parentSummary) {
   const awaitingShipment = isAwaitingShipment(row);
   const fabricationStartDate = textValue(row, "Fabrication Start Date");
   const uiState = projectUiState(textValue(row, "PROJECT STATUS"), overallProgress, finished, fabricationStartDate, awaitingShipment);
+  const coatingPercent = parsePercent(row, "Surface preparation and/or coating") ?? 0;
   const weldingPercent = parsePercent(row, "Full welding execution") ?? 0;
   const weldingFinishDate = textValue(row, "Welding Finish Date");
   const weldedWeightKg = (() => {
@@ -402,6 +424,7 @@ function buildSpoolRow(row, parentSummary) {
     kilos: parseNumber(row, "Kilos"),
     weldedWeightKg,
     weldingWeek,
+    coatingPercent,
     m2Painting: parseNumber(row, "M2 Painting"),
     stage: progress.currentStage.label,
     stagePercent: progress.currentStage.percent,
@@ -425,6 +448,7 @@ function buildProject(summaryRow, childRows) {
   const finished = isTruthyValue(getCellValue(summaryRow, "Project Finished?").raw) || overallProgress >= 100 || (parsePercent(summaryRow, "Package and Delivered") ?? 0) >= 100;
   const projectStatus = textValue(summaryRow, "PROJECT STATUS") || textValue(summaryRow, "Overall Project Status") || textValue(summaryRow, "Status");
   const awaitingShipment = isAwaitingShipment(summaryRow);
+  const coatingPercent = parsePercent(summaryRow, "Surface preparation and/or coating") ?? 0;
   const fabricationStartDate = textValue(summaryRow, "Fabrication Start Date");
   const uiState = projectUiState(projectStatus, overallProgress, finished, fabricationStartDate, awaitingShipment);
   const weldingPercent = parsePercent(summaryRow, "Full welding execution") ?? 0;
@@ -460,6 +484,7 @@ function buildProject(summaryRow, childRows) {
     kilos: parseNumber(summaryRow, "Kilos"),
     weldedWeightKg,
     weldingWeek,
+    coatingPercent,
     m2Painting: parseNumber(summaryRow, "M2 Painting"),
     currentStage: progress.currentStage.label,
     currentStagePercent: progress.currentStage.percent,
@@ -564,6 +589,64 @@ function buildProjects(rows) {
   }
 
   return projects;
+}
+
+function getProjectAlert(project, today = getCurrentBrazilDateObject()) {
+  const plannedFinish = parseDateObject(project.plannedFinishDate);
+  if (!plannedFinish) return null;
+
+  const diffDays = Math.floor((plannedFinish - today) / 86400000);
+  const coatingPercent = Number(project.coatingPercent || 0);
+
+  if (coatingPercent < 100 && diffDays <= 5) {
+    return {
+      projectDisplay: project.projectDisplay,
+      projectNumber: project.projectNumber,
+      plannedFinishDate: project.plannedFinishDate,
+      daysRemaining: diffDays,
+      type: diffDays < 0 ? "overdue" : "deadline",
+      title: diffDays < 0 ? "Prazo vencido" : "Prazo de pintura próximo",
+      message: diffDays < 0
+        ? "Término planejado expirou e a pintura ainda não chegou a 100%."
+        : `Faltam ${diffDays} dia(s) para o término planejado e a pintura ainda não está em 100%.`,
+      coatingPercent,
+      currentStage: project.currentStage,
+    };
+  }
+
+  if (coatingPercent >= 100 && diffDays <= 3) {
+    return {
+      projectDisplay: project.projectDisplay,
+      projectNumber: project.projectNumber,
+      plannedFinishDate: project.plannedFinishDate,
+      daysRemaining: diffDays,
+      type: diffDays < 0 ? "conference_overdue" : "conference",
+      title: diffDays < 0 ? "Conferência em atraso" : "Conferência pendente",
+      message: diffDays < 0
+        ? "A pintura já está em 100% e o término planejado já passou. Conferir envio."
+        : "A pintura já está em 100%. Fazer conferência antes do término planejado.",
+      coatingPercent,
+      currentStage: project.currentStage,
+    };
+  }
+
+  return null;
+}
+
+function buildAlerts(projects) {
+  const alerts = projects
+    .map((project) => getProjectAlert(project))
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.daysRemaining !== b.daysRemaining) return a.daysRemaining - b.daysRemaining;
+      return String(a.projectDisplay || "").localeCompare(String(b.projectDisplay || ""), "pt-BR");
+    });
+
+  const signature = alerts
+    .map((alert) => [alert.projectDisplay, alert.type, alert.plannedFinishDate, alert.daysRemaining].join("|"))
+    .join("||");
+
+  return { alerts, signature };
 }
 
 function buildStats(projects) {
@@ -684,6 +767,7 @@ async function buildPayload() {
   const rows = mapApiRows(sheet);
   const projects = buildProjects(rows);
   const stats = buildStats(projects);
+  const alertData = buildAlerts(projects);
 
   const payload = {
     ok: true,
@@ -698,8 +782,11 @@ async function buildPayload() {
         type: stage.type,
         optional: Boolean(stage.optional),
       })),
+      currentWeek: getProductionWeekLabel(getCurrentBrazilDateObject()),
+      alertSignature: alertData.signature,
     },
     stats,
+    alerts: alertData.alerts,
     projects,
   };
 

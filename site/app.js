@@ -5,6 +5,7 @@ const state = {
   filteredProjects: [],
   stats: null,
   meta: null,
+  alerts: [],
   searchQuery: "",
   demandFilter: "",
   weekFilter: "",
@@ -28,6 +29,10 @@ const modalContentEl = document.getElementById("modal-content");
 const modalTitleEl = document.getElementById("modal-title");
 const modalSubtitleEl = document.getElementById("modal-subtitle");
 const modalCloseEl = document.getElementById("modal-close");
+const alertModalEl = document.getElementById("alert-modal");
+const alertModalContentEl = document.getElementById("alert-modal-content");
+const alertModalCloseEl = document.getElementById("alert-modal-close");
+const alertBadgeCountEl = document.getElementById("alert-badge-count");
 
 function formatNumber(value, fractionDigits = 0) {
   if (value == null || Number.isNaN(value)) return "—";
@@ -70,14 +75,26 @@ function getWeekAnchor(year) {
   return anchor;
 }
 
+function getCurrentBrazilDate() {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = Number(parts.find((item) => item.type === "year")?.value);
+  const month = Number(parts.find((item) => item.type === "month")?.value);
+  const day = Number(parts.find((item) => item.type === "day")?.value);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
 function getCurrentBrazilYear() {
   return getCurrentBrazilDate().getUTCFullYear();
 }
 
 function formatProductionWeekLabel(weekNumber, weekYear) {
-  return weekYear !== getCurrentBrazilYear()
-    ? `Semana ${weekNumber} - ${weekYear}`
-    : `Semana ${weekNumber}`;
+  return `Semana ${weekNumber} - ${weekYear}`;
 }
 
 function getProductionWeekLabelFromDate(date) {
@@ -97,22 +114,8 @@ function getProductionWeekLabelFromDate(date) {
   return formatProductionWeekLabel(weekNumber, weekYear);
 }
 
-function getCurrentBrazilDate() {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(new Date());
-  const year = Number(parts.find((item) => item.type === "year")?.value);
-  const month = Number(parts.find((item) => item.type === "month")?.value);
-  const day = Number(parts.find((item) => item.type === "day")?.value);
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
 function getCurrentProductionWeekLabel() {
-  return getProductionWeekLabelFromDate(getCurrentBrazilDate());
+  return state.meta?.currentWeek || getProductionWeekLabelFromDate(getCurrentBrazilDate());
 }
 
 function parseWeekLabel(label) {
@@ -123,10 +126,6 @@ function parseWeekLabel(label) {
     week: weekMatch ? Number(weekMatch[1]) : Number.MAX_SAFE_INTEGER,
     year: yearMatch ? Number(yearMatch[1]) : getCurrentBrazilYear(),
   };
-}
-
-function getWeekNumber(label) {
-  return parseWeekLabel(label).week;
 }
 
 function compareWeekLabels(a, b) {
@@ -538,7 +537,100 @@ function openProjectModal(project) {
 function closeProjectModal() {
   modalEl.classList.add("hidden");
   modalEl.setAttribute("aria-hidden", "true");
-  document.body.classList.remove("modal-open");
+  if (alertModalEl.classList.contains("hidden")) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function getAlertStorageKey() {
+  return "step-alert-popup-state";
+}
+
+function getAlertSignature() {
+  return `${state.meta?.version || "no-version"}::${state.meta?.alertSignature || "no-alerts"}`;
+}
+
+function shouldOpenAlertPopup() {
+  if (!state.alerts.length) return false;
+  try {
+    const raw = window.localStorage.getItem(getAlertStorageKey());
+    const saved = raw ? JSON.parse(raw) : null;
+    const signature = getAlertSignature();
+    if (!saved || saved.signature !== signature) return true;
+    const lastDismissedAt = Number(saved.dismissedAt || 0);
+    return (Date.now() - lastDismissedAt) >= 4 * 60 * 60 * 1000;
+  } catch {
+    return true;
+  }
+}
+
+function persistAlertDismiss() {
+  try {
+    window.localStorage.setItem(
+      getAlertStorageKey(),
+      JSON.stringify({
+        signature: getAlertSignature(),
+        dismissedAt: Date.now(),
+      })
+    );
+  } catch {}
+}
+
+function renderAlertBadge() {
+  if (!alertBadgeCountEl) return;
+  alertBadgeCountEl.textContent = String(state.alerts.length || 0);
+}
+
+function renderAlertModal() {
+  if (!alertModalContentEl) return;
+  if (!state.alerts.length) {
+    alertModalContentEl.innerHTML = '<div class="alert-empty">Nenhum prazo em alerta no momento.</div>';
+    return;
+  }
+
+  const items = state.alerts
+    .map((alert) => {
+      const tone = alert.type?.includes("conference") ? "conference" : (alert.type === "overdue" ? "overdue" : "deadline");
+      const daysLabel = alert.daysRemaining < 0
+        ? `${Math.abs(alert.daysRemaining)} dia(s) em atraso`
+        : `${alert.daysRemaining} dia(s) para o término planejado`;
+      return `
+        <article class="alert-item alert-item--${tone}">
+          <div class="alert-item-head">
+            <strong>${escapeHtml(alert.projectDisplay)}</strong>
+            <span class="alert-item-tag">${escapeHtml(alert.title)}</span>
+          </div>
+          <div class="alert-item-meta">
+            <span>Término planejado: <strong>${escapeHtml(alert.plannedFinishDate || "—")}</strong></span>
+            <span>${escapeHtml(daysLabel)}</span>
+            <span>Pintura: <strong>${formatPercent(alert.coatingPercent)}</strong></span>
+          </div>
+          <p>${escapeHtml(alert.message)}</p>
+        </article>
+      `;
+    })
+    .join("");
+
+  alertModalContentEl.innerHTML = `<div class="alert-list">${items}</div>`;
+}
+
+function openAlertModal(force = false) {
+  if (!alertModalEl) return;
+  if (!force && !shouldOpenAlertPopup()) return;
+  renderAlertModal();
+  alertModalEl.classList.remove("hidden");
+  alertModalEl.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function closeAlertModal() {
+  if (!alertModalEl) return;
+  persistAlertDismiss();
+  alertModalEl.classList.add("hidden");
+  alertModalEl.setAttribute("aria-hidden", "true");
+  if (modalEl.classList.contains("hidden")) {
+    document.body.classList.remove("modal-open");
+  }
 }
 
 function updateMeta() {
@@ -560,6 +652,7 @@ async function loadProjects() {
     state.projects = enrichProjects(data.projects || []);
     state.stats = data.stats || null;
     state.meta = data.meta || null;
+    state.alerts = data.alerts || [];
     buildDemandOptions();
     buildWeekOptions();
 
@@ -571,7 +664,13 @@ async function loadProjects() {
     renderStats();
     renderTable();
     renderSelectedProjectCard();
+    renderAlertBadge();
     updateMeta();
+    if (shouldOpenAlertPopup()) {
+      openAlertModal(true);
+    } else {
+      renderAlertModal();
+    }
   } catch (error) {
     bodyEl.innerHTML = `<tr><td colspan="16" class="loading-cell">${error.message}</td></tr>`;
     detailCardEl.innerHTML = `<div class="detail-placeholder">${error.message}</div>`;
@@ -644,6 +743,17 @@ function bindEvents() {
 
   modalCloseEl.addEventListener("click", closeProjectModal);
 
+  if (alertModalCloseEl) {
+    alertModalCloseEl.addEventListener("click", closeAlertModal);
+  }
+
+  if (alertModalEl) {
+    alertModalEl.addEventListener("click", (event) => {
+      if (event.target.matches("[data-close-alert='true']")) {
+        closeAlertModal();
+      }
+    });
+  }
 
   modalContentEl.addEventListener("click", (event) => {
     const row = event.target.closest("tr[data-modal-row='true']");
@@ -656,7 +766,12 @@ function bindEvents() {
 
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeProjectModal();
+    if (event.key !== "Escape") return;
+    if (alertModalEl && !alertModalEl.classList.contains("hidden")) {
+      closeAlertModal();
+      return;
+    }
+    closeProjectModal();
   });
 }
 
