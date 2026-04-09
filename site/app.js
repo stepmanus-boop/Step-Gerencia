@@ -61,6 +61,7 @@ function uiStateLabel(stateValue) {
 function translateProjectStatus(projectStatus, uiState) {
   if (uiState === "completed") return "Finalizado";
   if (uiState === "awaiting_shipment") return "Aguardando envio";
+  if (uiState === "not_started") return "Não iniciado";
 
   const normalized = String(projectStatus || "").trim().toUpperCase().replace(/\s+/g, " ");
   if (["ONGOING", "ON GOING", "IN PROGRESS", "EM PRODUCAO", "EM PRODUÇÃO"].includes(normalized)) {
@@ -102,6 +103,19 @@ function setClock(targetTimeId, targetDateId, locale, timeZone) {
 
   document.getElementById(targetTimeId).textContent = timeText;
   document.getElementById(targetDateId).textContent = dateText;
+}
+
+
+function percentStateClass(value) {
+  if (value == null || Number.isNaN(value)) return "";
+  if (Number(value) >= 100) return "value-complete";
+  if (Number(value) > 0) return "value-progress";
+  return "";
+}
+
+function tableCellClass(value, type = "percent") {
+  if (type !== "percent") return "";
+  return percentStateClass(value);
 }
 
 function startClocks() {
@@ -293,20 +307,22 @@ function renderModal(project) {
       const stageColumns = stageOrder
         .map((stage) => {
           const value = spool.stageValues?.[stage.key];
-          return `<td>${value == null || value === "" ? "—" : stage.type === "percent" ? formatPercent(value) : value}</td>`;
+          const formatted = value == null || value === "" ? "—" : stage.type === "percent" ? formatPercent(value) : value;
+          const cellClass = tableCellClass(value, stage.type);
+          return `<td class="${cellClass}">${formatted}</td>`;
         })
         .join("");
 
       return `
-        <tr>
+        <tr data-modal-row="true">
           <td>${spool.iso || "—"}</td>
           <td>${spool.description || "—"}</td>
           <td>${formatNumber(spool.kilos, 2)}</td>
           <td>${formatNumber(spool.m2Painting, 3)}</td>
           <td><span class="cell-status cell-status--${["awaiting_shipment", "completed"].includes(spool.uiState) ? "completed" : spool.uiState}">${uiStateLabel(spool.uiState)}</span></td>
-          <td>${spool.stage || "—"}</td>
-          <td>${formatPercent(spool.individualProgress)}</td>
-          <td>${formatPercent(spool.overallProgress)}</td>
+          <td class="${percentStateClass(spool.stagePercent)}">${spool.stage || "—"}</td>
+          <td class="${percentStateClass(spool.individualProgress)}">${formatPercent(spool.individualProgress)}</td>
+          <td class="${percentStateClass(spool.overallProgress)}">${formatPercent(spool.overallProgress)}</td>
           ${stageColumns}
         </tr>
       `;
@@ -463,6 +479,17 @@ function bindEvents() {
   });
 
   modalCloseEl.addEventListener("click", closeProjectModal);
+
+
+  modalContentEl.addEventListener("click", (event) => {
+    const row = event.target.closest("tr[data-modal-row='true']");
+    if (!row) return;
+    modalContentEl.querySelectorAll("tr[data-modal-row='true'].modal-row-selected").forEach((item) => {
+      if (item !== row) item.classList.remove("modal-row-selected");
+    });
+    row.classList.toggle("modal-row-selected");
+  });
+
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeProjectModal();

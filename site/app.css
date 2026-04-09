@@ -477,3 +477,28 @@ body.modal-open { overflow: hidden; }
   .search-row { grid-template-columns: 1fr; }
   .detail-grid, .modal-summary-grid { grid-template-columns: 1fr 1fr; }
 }
+
+
+.modal-table tbody tr {
+  cursor: pointer;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.modal-table tbody tr:hover {
+  background: rgba(23, 70, 118, 0.18);
+}
+
+.modal-table tbody tr.modal-row-selected {
+  background: linear-gradient(90deg, rgba(19, 66, 116, 0.42), rgba(9, 24, 44, 0.55));
+  box-shadow: inset 4px 0 0 var(--accent-2);
+}
+
+.modal-table tbody td.value-complete {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.modal-table tbody td.value-progress {
+  color: var(--warning);
+  font-weight: 700;
+}
