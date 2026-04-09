@@ -240,16 +240,26 @@ function buildWeekOptions() {
   if (!validValues.includes(selected)) state.weekFilter = "";
 }
 
+function getActiveWeekLabel() {
+  return state.weekFilter || getCurrentProductionWeekLabel();
+}
+
+function getWeldedWeightForWeek(weekLabel) {
+  if (!weekLabel) return 0;
+  return state.projects.reduce((total, project) => {
+    if (project.weldingWeek !== weekLabel) return total;
+    return total + (project.weldedWeightKg || 0);
+  }, 0);
+}
+
 function applyFilter() {
   const query = normalizeText(state.searchQuery).trim();
   const demand = normalizeText(state.demandFilter).trim();
-  const week = normalizeText(state.weekFilter).trim();
 
   state.filteredProjects = state.projects.filter((project) => {
     const matchesQuery = !query || project._searchText.includes(query);
     const matchesDemand = !demand || normalizeText(project.currentStage).includes(demand) || normalizeText(translateProjectStatus(project.projectStatus, project.uiState)).includes(demand);
-    const matchesWeek = !week || normalizeText(project.weldingWeek).includes(week);
-    return matchesQuery && matchesDemand && matchesWeek;
+    return matchesQuery && matchesDemand;
   });
 
   if (!state.filteredProjects.find((project) => project.rowId === state.selectedProjectId)) {
@@ -263,12 +273,13 @@ function getSelectedProject() {
 
 function renderStats() {
   if (!state.stats) return;
-  const currentWeek = getCurrentProductionWeekLabel();
+  const activeWeek = getActiveWeekLabel();
+  const weekWeight = getWeldedWeightForWeek(activeWeek);
   document.getElementById("stat-projects").textContent = formatNumber(state.stats.totalProjects);
-  document.getElementById("stat-spools").textContent = `${formatNumber(state.stats.totalWeldedWeightKg, 0)} kg`;
+  document.getElementById("stat-spools").textContent = `${formatNumber(weekWeight, 0)} kg`;
   document.getElementById("stat-total-weight").textContent = `${formatNumber(state.stats.totalWeightKg, 0)} kg`;
   const currentWeekEl = document.getElementById("stat-current-week");
-  if (currentWeekEl) currentWeekEl.textContent = currentWeek;
+  if (currentWeekEl) currentWeekEl.textContent = activeWeek;
 
   document.getElementById("stat-completed").textContent = formatNumber(state.stats.completed);
   document.getElementById("stat-in-progress").textContent = formatNumber(state.stats.inProgress);
@@ -409,6 +420,8 @@ function renderModal(project) {
           <td>${spool.iso || "—"}</td>
           <td>${spool.description || "—"}</td>
           <td class="modal-observation-cell">${observations}</td>
+          <td>${formatNumber(spool.weldedWeightKg, 0)} kg</td>
+          <td>${spool.weldingWeek || "—"}</td>
           <td>${formatNumber(spool.kilos, 2)}</td>
           <td>${formatNumber(spool.m2Painting, 3)}</td>
           <td><span class="cell-status cell-status--${["awaiting_shipment", "completed"].includes(spool.uiState) ? "completed" : spool.uiState}">${uiStateLabel(spool.uiState)}</span></td>
@@ -544,6 +557,7 @@ function bindEvents() {
     if (demandFilterEl) demandFilterEl.value = "";
     if (weekFilterEl) weekFilterEl.value = "";
     applyFilter();
+    renderStats();
     renderTable();
     renderSelectedProjectCard();
     tableShellEl.scrollTop = 0;
@@ -563,10 +577,7 @@ function bindEvents() {
   if (weekFilterEl) {
     weekFilterEl.addEventListener("change", (event) => {
       state.weekFilter = event.target.value;
-      applyFilter();
-      renderTable();
-      renderSelectedProjectCard();
-      tableShellEl.scrollTop = 0;
+      renderStats();
     });
   }
 
