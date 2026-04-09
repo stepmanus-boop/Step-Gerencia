@@ -106,8 +106,7 @@ function parsePercent(row, key) {
 
   const parsed = parseNumberValue(raw ?? display);
   if (parsed == null) return null;
-  if (parsed >= 0 && parsed <= 1 && parsed !== 1) return parsed * 100;
-  if (parsed === 1 && typeof display === "string" && display === "1") return 100;
+  if (parsed >= 0 && parsed <= 1) return parsed * 100;
   return parsed;
 }
 
@@ -496,6 +495,7 @@ function buildProject(summaryRow, childRows) {
     jobProcessStatus: textValue(summaryRow, "Job Process Status") || progress.currentStage.label,
     summaryDrawing: textValue(summaryRow, "Drawing"),
     projectType: textValue(summaryRow, "Project Type"),
+    fabricationStartDate: formatDateValue(textValue(summaryRow, "Fabrication Start Date")),
     plannedStartDate: formatDateValue(textValue(summaryRow, "Start Date")),
     plannedFinishDate: formatDateValue(textValue(summaryRow, "Finish Date")),
     client: textValue(summaryRow, "Client"),
@@ -592,9 +592,9 @@ function buildProjects(rows) {
 }
 
 function getProjectAlert(project, today = getCurrentBrazilDateObject()) {
+  if (!project.fabricationStartDate) return null;
   const plannedFinish = parseDateObject(project.plannedFinishDate);
   if (!plannedFinish) return null;
-  if (!project.fabricationStartDate) return null;
 
   const diffDays = Math.floor((plannedFinish - today) / 86400000);
   const coatingPercent = Number(project.coatingPercent || 0);
