@@ -223,21 +223,21 @@ function buildWeekOptions() {
   if (!weekFilterEl) return;
   const selected = state.weekFilter || "";
   const currentWeek = getCurrentProductionWeekLabel();
-  const weekLabels = Array.from(new Set(state.projects.map((project) => project.weldingWeek).filter(Boolean)))
-    .sort((a, b) => getWeekNumber(a) - getWeekNumber(b));
+  const weekLabels = Array.from(
+    new Set([
+      currentWeek,
+      ...state.projects.map((project) => project.weldingWeek).filter(Boolean),
+    ])
+  ).sort((a, b) => getWeekNumber(a) - getWeekNumber(b));
 
-  const options = [];
-  options.push('<option value="">Todas as semanas</option>');
-  options.push(`<option value="${currentWeek}">${currentWeek}</option>`);
-  for (const label of weekLabels) {
-    if (label === currentWeek) continue;
-    options.push(`<option value="${label}">${label}</option>`);
-  }
+  const options = [
+    '<option value="">Todas as semanas</option>',
+    ...weekLabels.map((label) => `<option value="${label}">${label}</option>`),
+  ];
 
   weekFilterEl.innerHTML = options.join("");
-  const validValues = [currentWeek, ...weekLabels];
-  weekFilterEl.value = validValues.includes(selected) ? selected : "";
-  if (!validValues.includes(selected)) state.weekFilter = "";
+  weekFilterEl.value = weekLabels.includes(selected) ? selected : "";
+  if (!weekLabels.includes(selected)) state.weekFilter = "";
 }
 
 function getActiveWeekLabel() {
