@@ -191,7 +191,7 @@ function getCurrentBrazilYear() {
 }
 
 function formatProductionWeekLabel(weekNumber, weekYear) {
-  return weekYear < getCurrentBrazilYear()
+  return weekYear !== getCurrentBrazilYear()
     ? `Semana ${weekNumber} - ${weekYear}`
     : `Semana ${weekNumber}`;
 }
@@ -397,6 +397,8 @@ function buildSpoolRow(row, parentSummary) {
     description: parsedDrawing.description,
     drawing: drawingText,
     observations: textValue(row, "OBSERVATIONS"),
+    plannedStartDate: formatDateValue(textValue(row, "Start Date")),
+    plannedFinishDate: formatDateValue(textValue(row, "Finish Date")),
     kilos: parseNumber(row, "Kilos"),
     weldedWeightKg,
     weldingWeek,
@@ -469,6 +471,8 @@ function buildProject(summaryRow, childRows) {
     jobProcessStatus: textValue(summaryRow, "Job Process Status") || progress.currentStage.label,
     summaryDrawing: textValue(summaryRow, "Drawing"),
     projectType: textValue(summaryRow, "Project Type"),
+    plannedStartDate: formatDateValue(textValue(summaryRow, "Start Date")),
+    plannedFinishDate: formatDateValue(textValue(summaryRow, "Finish Date")),
     client: textValue(summaryRow, "Client"),
     vessel: textValue(summaryRow, "Vessel"),
     className: textValue(summaryRow, "Class"),

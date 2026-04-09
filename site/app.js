@@ -75,7 +75,7 @@ function getCurrentBrazilYear() {
 }
 
 function formatProductionWeekLabel(weekNumber, weekYear) {
-  return weekYear < getCurrentBrazilYear()
+  return weekYear !== getCurrentBrazilYear()
     ? `Semana ${weekNumber} - ${weekYear}`
     : `Semana ${weekNumber}`;
 }
@@ -405,6 +405,8 @@ function renderSelectedProjectCard() {
         <div class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></div>
         <div class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></div>
         <div class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></div>
+        <div class="metric-chip"><span>Início planejado</span><strong>${project.plannedStartDate || "—"}</strong></div>
+        <div class="metric-chip"><span>Término planejado</span><strong>${project.plannedFinishDate || "—"}</strong></div>
         <div class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 2)}</strong></div>
         <div class="metric-chip"><span>Painting</span><strong>${formatNumber(project.m2Painting, 3)}</strong></div>
         <div class="metric-chip"><span>% Individual</span><strong>${formatPercent(project.individualProgress)}</strong></div>
@@ -484,6 +486,8 @@ function renderModal(project) {
       <article class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></article>
       <article class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></article>
       <article class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></article>
+      <article class="metric-chip"><span>Início planejado</span><strong>${project.plannedStartDate || "—"}</strong></article>
+      <article class="metric-chip"><span>Término planejado</span><strong>${project.plannedFinishDate || "—"}</strong></article>
       <article class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 2)}</strong></article>
       <article class="metric-chip"><span>Painting total</span><strong>${formatNumber(project.m2Painting, 3)}</strong></article>
       <article class="metric-chip"><span>% Individual</span><strong>${formatPercent(project.individualProgress)}</strong></article>
