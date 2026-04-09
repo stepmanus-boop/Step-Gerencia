@@ -115,9 +115,26 @@ function getCurrentProductionWeekLabel() {
   return getProductionWeekLabelFromDate(getCurrentBrazilDate());
 }
 
+function parseWeekLabel(label) {
+  const text = String(label || "").trim();
+  const weekMatch = text.match(/Semana\s+(\d+)/i);
+  const yearMatch = text.match(/-\s*(\d{4})$/);
+  return {
+    week: weekMatch ? Number(weekMatch[1]) : Number.MAX_SAFE_INTEGER,
+    year: yearMatch ? Number(yearMatch[1]) : getCurrentBrazilYear(),
+  };
+}
+
 function getWeekNumber(label) {
-  const match = String(label || "").match(/(\d+)/);
-  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+  return parseWeekLabel(label).week;
+}
+
+function compareWeekLabels(a, b) {
+  const left = parseWeekLabel(a);
+  const right = parseWeekLabel(b);
+  if (left.year !== right.year) return left.year - right.year;
+  if (left.week !== right.week) return left.week - right.week;
+  return String(a || "").localeCompare(String(b || ""), "pt-BR");
 }
 
 function uiStateLabel(stateValue) {
@@ -233,21 +250,21 @@ function buildWeekOptions() {
   if (!weekFilterEl) return;
   const selected = state.weekFilter || "";
   const currentWeek = getCurrentProductionWeekLabel();
-  const weekLabels = Array.from(new Set(state.projects.map((project) => project.weldingWeek).filter(Boolean)))
-    .sort((a, b) => getWeekNumber(a) - getWeekNumber(b));
+  const weekLabels = Array.from(
+    new Set([
+      currentWeek,
+      ...state.projects.map((project) => project.weldingWeek).filter(Boolean),
+    ])
+  ).sort(compareWeekLabels);
 
-  const options = [];
-  options.push('<option value="">Todas as semanas</option>');
-  options.push(`<option value="${currentWeek}">${currentWeek}</option>`);
+  const options = ['<option value="">Todas as semanas</option>'];
   for (const label of weekLabels) {
-    if (label === currentWeek) continue;
     options.push(`<option value="${label}">${label}</option>`);
   }
 
   weekFilterEl.innerHTML = options.join("");
-  const validValues = [currentWeek, ...weekLabels];
-  weekFilterEl.value = validValues.includes(selected) ? selected : "";
-  if (!validValues.includes(selected)) state.weekFilter = "";
+  weekFilterEl.value = weekLabels.includes(selected) ? selected : "";
+  if (!weekLabels.includes(selected)) state.weekFilter = "";
 }
 
 function getActiveWeekLabel() {
@@ -516,22 +533,31 @@ function updateMeta() {
 }
 
 async function fetchProjectsPayload() {
+  const sources = [];
   const isGitHubPages = window.location.hostname.endsWith("github.io");
-  const candidates = isGitHubPages
-    ? ["./projects.json", "/api/projects"]
-    : ["/api/projects", "./projects.json"];
+
+  if (!isGitHubPages) {
+    sources.push("/api/projects");
+  }
+
+  sources.push("./projects.json");
+
+  if (isGitHubPages) {
+    sources.push("projects.json");
+  }
 
   let lastError = null;
 
-  for (const url of candidates) {
+  for (const source of sources) {
     try {
-      const response = await fetch(url, { cache: "no-store" });
-      const data = await response.json();
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.error || `Falha ao carregar dados em ${url}.`);
+      const response = await fetch(source, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Falha ao carregar dados (${response.status})`);
       }
-
+      const data = await response.json();
+      if (!data?.ok) {
+        throw new Error(data?.error || "Falha ao carregar projetos.");
+      }
       return data;
     } catch (error) {
       lastError = error;
@@ -544,7 +570,6 @@ async function fetchProjectsPayload() {
 async function loadProjects() {
   try {
     const data = await fetchProjectsPayload();
-
     state.projects = enrichProjects(data.projects || []);
     state.stats = data.stats || null;
     state.meta = data.meta || null;
