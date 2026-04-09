@@ -70,6 +70,16 @@ function getWeekAnchor(year) {
   return anchor;
 }
 
+function getCurrentBrazilYear() {
+  return getCurrentBrazilDate().getUTCFullYear();
+}
+
+function formatProductionWeekLabel(weekNumber, weekYear) {
+  return weekYear < getCurrentBrazilYear()
+    ? `Semana ${weekNumber} - ${weekYear}`
+    : `Semana ${weekNumber}`;
+}
+
 function getProductionWeekLabelFromDate(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
   let weekYear = date.getUTCFullYear();
@@ -84,7 +94,7 @@ function getProductionWeekLabelFromDate(date) {
   const anchor = getWeekAnchor(weekYear);
   const diffDays = Math.floor((date - anchor) / 86400000);
   const weekNumber = Math.floor(diffDays / 7) + 1;
-  return `Semana ${weekNumber}`;
+  return formatProductionWeekLabel(weekNumber, weekYear);
 }
 
 function getCurrentBrazilDate() {
@@ -223,21 +233,21 @@ function buildWeekOptions() {
   if (!weekFilterEl) return;
   const selected = state.weekFilter || "";
   const currentWeek = getCurrentProductionWeekLabel();
-  const weekLabels = Array.from(
-    new Set([
-      currentWeek,
-      ...state.projects.map((project) => project.weldingWeek).filter(Boolean),
-    ])
-  ).sort((a, b) => getWeekNumber(a) - getWeekNumber(b));
+  const weekLabels = Array.from(new Set(state.projects.map((project) => project.weldingWeek).filter(Boolean)))
+    .sort((a, b) => getWeekNumber(a) - getWeekNumber(b));
 
-  const options = [
-    '<option value="">Todas as semanas</option>',
-    ...weekLabels.map((label) => `<option value="${label}">${label}</option>`),
-  ];
+  const options = [];
+  options.push('<option value="">Todas as semanas</option>');
+  options.push(`<option value="${currentWeek}">${currentWeek}</option>`);
+  for (const label of weekLabels) {
+    if (label === currentWeek) continue;
+    options.push(`<option value="${label}">${label}</option>`);
+  }
 
   weekFilterEl.innerHTML = options.join("");
-  weekFilterEl.value = weekLabels.includes(selected) ? selected : "";
-  if (!weekLabels.includes(selected)) state.weekFilter = "";
+  const validValues = [currentWeek, ...weekLabels];
+  weekFilterEl.value = validValues.includes(selected) ? selected : "";
+  if (!validValues.includes(selected)) state.weekFilter = "";
 }
 
 function getActiveWeekLabel() {

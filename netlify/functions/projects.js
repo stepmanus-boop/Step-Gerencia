@@ -182,6 +182,20 @@ function getWeekAnchor(year) {
   return anchor;
 }
 
+function getCurrentBrazilYear() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+  }).formatToParts(new Date());
+  return Number(parts.find((item) => item.type === "year")?.value || new Date().getUTCFullYear());
+}
+
+function formatProductionWeekLabel(weekNumber, weekYear) {
+  return weekYear < getCurrentBrazilYear()
+    ? `Semana ${weekNumber} - ${weekYear}`
+    : `Semana ${weekNumber}`;
+}
+
 function getProductionWeekLabel(value) {
   const date = parseDateObject(value);
   if (!date) return "";
@@ -198,7 +212,7 @@ function getProductionWeekLabel(value) {
   const anchor = getWeekAnchor(weekYear);
   const diffDays = Math.floor((date - anchor) / 86400000);
   const weekNumber = Math.floor(diffDays / 7) + 1;
-  return `Semana ${weekNumber}`;
+  return formatProductionWeekLabel(weekNumber, weekYear);
 }
 
 function hasDateValue(row, key) {
