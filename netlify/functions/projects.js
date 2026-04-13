@@ -543,7 +543,8 @@ function buildSpoolRow(row, parentSummary) {
   const progress = deriveProgress(row);
   const overallProgress = parsePercent(row, "% Overall Progress") ?? parsePercent(parentSummary, "% Overall Progress") ?? 0;
   const individualProgress = parsePercent(row, "% Individual Progress") ?? overallProgress;
-  const finished = isTruthyValue(getCellValue(row, "Project Finished?").raw) || overallProgress >= 100 || (parsePercent(row, "Package and Delivered") ?? 0) >= 100;
+  const projectFinishedFlag = isTruthyValue(getCellValue(row, "Project Finished?").raw);
+  const finished = projectFinishedFlag || overallProgress >= 100 || (parsePercent(row, "Package and Delivered") ?? 0) >= 100;
   const fabricationStartDate = textValue(row, "Fabrication Start Date");
   const stageValues = buildStageValues(row);
   const flow = getOperationalFlow(stageValues, fabricationStartDate, parsePercent(row, "Surface preparation and/or coating") ?? 0, finished, textValue(row, "PROJECT STATUS"));
@@ -662,6 +663,7 @@ function buildProject(summaryRow, childRows) {
     milestones: progress.milestones,
     stageValues,
     finished: finished,
+    projectFinishedFlag,
     uiState,
     operationalSector,
     operationalState: flow.state,
