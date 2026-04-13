@@ -369,8 +369,8 @@ function projectUiState(projectStatus, overallProgress, finished, fabricationSta
   return "in_progress";
 }
 
-function classifyAlertSector(project) {
-  const stage = String(project?.currentStage || project?.jobProcessStatus || "").toLowerCase();
+function classifyStageSector(stageValue) {
+  const stage = String(stageValue || '').toLowerCase();
 
   if (
     stage.includes('paint') ||
@@ -419,6 +419,103 @@ function classifyAlertSector(project) {
   }
 
   return 'Geral';
+}
+
+function classifyAlertSector(project) {
+  const stageSector = classifyStageSector(project?.currentStage || project?.jobProcessStatus || '');
+  if (stageSector !== 'Geral') return stageSector;
+
+  const stageValues = project?.stageValues || {};
+  const fabricationStarted = Boolean(project?.fabricationStartDate);
+  const boilermakerFinished = Boolean(stageValues['Boilermaker Finish Date']);
+  const weldingFinished = Boolean(stageValues['Welding Finish Date']);
+  const thFinished = Boolean(stageValues['TH Finish Date']);
+
+  const withdrewMaterial = Number(stageValues['Withdrew Material'] || 0);
+  const weldingPreparation = Number(stageValues['Welding Preparation'] || 0);
+  const spoolAssemble = Number(stageValues['Spool Assemble and tack weld'] || 0);
+  const fullWelding = Number(stageValues['Full welding execution'] || 0);
+  const initialDimensional = Number(stageValues['Initial Dimensional Inspection/3D'] || 0);
+  const finalDimensionalQc = Number(stageValues['Final Dimensional Inpection/3D (QC)'] || 0);
+  const ndeQc = Number(stageValues['Non Destructive Examination (QC)'] || 0);
+  const hydroTestQc = Number(stageValues['Hydro Test Pressure (QC)'] || 0);
+  const coatingPercent = Number(project?.coatingPercent || 0);
+
+  if (
+    fabricationStarted &&
+    (!boilermakerFinished || withdrewMaterial < 100 || weldingPreparation < 100 || spoolAssemble < 100)
+  ) {
+    return 'Calderaria';
+  }
+
+  if (
+    boilermakerFinished &&
+    (!weldingFinished || fullWelding < 100 || initialDimensional < 100)
+  ) {
+    return 'Solda';
+  }
+
+  if (
+    weldingFinished &&
+    (!thFinished || finalDimensionalQc < 100 || ndeQc < 100 || hydroTestQc < 100)
+  ) {
+    return 'Inspeção';
+  }
+
+  if (coatingPercent < 100 || thFinished) {
+    return 'Pintura';
+  }
+
+  return 'Geral';
+}
+
+function buildAlertObservation(project, sector, diffDays) {
+  const stageLabel = project?.currentStage || project?.jobProcessStatus || 'Etapa não identificada';
+  const stageValues = project?.stageValues || {};
+  const coatingPercent = Number(project?.coatingPercent || 0);
+  const baseDaysText = diffDays < 0
+    ? `O término planejado já venceu há ${Math.abs(diffDays)} dia(s).`
+    : `Faltam ${diffDays} dia(s) para o término planejado.`;
+
+  if (coatingPercent >= 100) {
+    return {
+      title: diffDays < 0 ? 'Conferência em atraso' : 'Conferência pendente',
+      message: `${baseDaysText} A pintura já está em 100% e o projeto está em ${sector}, preso em ${stageLabel}. Conferir envio.`,
+    };
+  }
+
+  if (sector === 'Calderaria') {
+    return {
+      title: diffDays < 0 ? 'Calderaria em atraso' : 'Calderaria em atenção',
+      message: `${baseDaysText} O projeto ainda está na Calderaria, preso em ${stageLabel}.`,
+    };
+  }
+
+  if (sector === 'Solda') {
+    return {
+      title: diffDays < 0 ? 'Solda em atraso' : 'Solda em atenção',
+      message: `${baseDaysText} O projeto ainda está na Solda, preso em ${stageLabel}.`,
+    };
+  }
+
+  if (sector === 'Inspeção') {
+    return {
+      title: diffDays < 0 ? 'Inspeção em atraso' : 'Inspeção em atenção',
+      message: `${baseDaysText} O projeto ainda está na Inspeção, preso em ${stageLabel}.`,
+    };
+  }
+
+  if (sector === 'Pintura') {
+    return {
+      title: diffDays < 0 ? 'Pintura em atraso' : 'Pintura em atenção',
+      message: `${baseDaysText} O projeto ainda está na Pintura, preso em ${stageLabel}, com pintura em ${coatingPercent}%.`,
+    };
+  }
+
+  return {
+    title: diffDays < 0 ? 'Prazo vencido' : 'Prazo próximo',
+    message: `${baseDaysText} O projeto segue preso em ${stageLabel}.`,
+  };
 }
 
 function isSummaryRow(row) {
@@ -650,6 +747,8 @@ function getProjectAlert(project, today = getCurrentBrazilDateObject()) {
 
   const diffDays = Math.floor((plannedFinish - today) / 86400000);
   const coatingPercent = Number(project.coatingPercent || 0);
+  const sector = classifyAlertSector(project);
+  const observation = buildAlertObservation(project, sector, diffDays);
 
   if (coatingPercent < 100 && diffDays <= 5) {
     return {
@@ -657,14 +756,12 @@ function getProjectAlert(project, today = getCurrentBrazilDateObject()) {
       projectNumber: project.projectNumber,
       projectRowId: project.rowId,
       client: project.client,
-      sector: classifyAlertSector(project),
+      sector,
       plannedFinishDate: project.plannedFinishDate,
       daysRemaining: diffDays,
       type: diffDays < 0 ? "overdue" : "deadline",
-      title: diffDays < 0 ? "Prazo vencido" : "Prazo de pintura próximo",
-      message: diffDays < 0
-        ? "Término planejado expirou e a pintura ainda não chegou a 100%."
-        : `Faltam ${diffDays} dia(s) para o término planejado e a pintura ainda não está em 100%.`,
+      title: observation.title,
+      message: observation.message,
       coatingPercent,
       currentStage: project.currentStage,
     };
@@ -676,14 +773,12 @@ function getProjectAlert(project, today = getCurrentBrazilDateObject()) {
       projectNumber: project.projectNumber,
       projectRowId: project.rowId,
       client: project.client,
-      sector: classifyAlertSector(project),
+      sector,
       plannedFinishDate: project.plannedFinishDate,
       daysRemaining: diffDays,
       type: diffDays < 0 ? "conference_overdue" : "conference",
-      title: diffDays < 0 ? "Conferência em atraso" : "Conferência pendente",
-      message: diffDays < 0
-        ? "A pintura já está em 100% e o término planejado já passou. Conferir envio."
-        : "A pintura já está em 100%. Fazer conferência antes do término planejado.",
+      title: observation.title,
+      message: observation.message,
       coatingPercent,
       currentStage: project.currentStage,
     };

@@ -141,6 +141,7 @@ function compareWeekLabels(a, b) {
 
 function getAlertSeverity(alert) {
   const type = String(alert?.type || "").toLowerCase();
+  if (type.includes("conference")) return "medium";
   if (type.includes("overdue") || type.includes("urgent") || type.includes("deadline")) return "urgent";
   return "medium";
 }
