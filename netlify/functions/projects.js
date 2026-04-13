@@ -621,6 +621,14 @@ function buildProject(summaryRow, childRows) {
     return acc;
   }, { total: 0, completed: 0, inProgress: 0, notStarted: 0 });
 
+  const operationalSector = classifyAlertSector({
+    currentStage: progress.currentStage.label,
+    jobProcessStatus: textValue(summaryRow, "Job Process Status") || progress.currentStage.label,
+    stageValues: buildStageValues(summaryRow),
+    fabricationStartDate,
+    coatingPercent,
+  });
+
   return {
     rowId: summaryRow.id,
     rowNumber: summaryRow.rowNumber,
@@ -653,6 +661,7 @@ function buildProject(summaryRow, childRows) {
     stageValues: buildStageValues(summaryRow),
     finished: finished || awaitingShipment,
     uiState,
+    operationalSector,
     spools,
     spoolStats,
   };
@@ -811,6 +820,8 @@ function buildStats(projects) {
     totalPaintingM2: 0,
     completed: 0,
     inProgress: 0,
+    inspectionProjects: 0,
+    awaitingShipment: 0,
     notStarted: 0,
     averageOverallProgress: 0,
   };
@@ -824,9 +835,12 @@ function buildStats(projects) {
     stats.totalPaintingM2 += project.m2Painting || 0;
     progressAccumulator += project.overallProgress || 0;
 
-    if (["completed", "awaiting_shipment"].includes(project.uiState)) stats.completed += 1;
+    if (project.uiState === "completed") stats.completed += 1;
+    else if (project.uiState === "awaiting_shipment") stats.awaitingShipment += 1;
     else if (project.uiState === "in_progress") stats.inProgress += 1;
     else stats.notStarted += 1;
+
+    if (project.operationalSector === "Inspeção") stats.inspectionProjects += 1;
   }
 
   stats.averageOverallProgress = projects.length ? progressAccumulator / projects.length : 0;
