@@ -647,8 +647,19 @@ function renderAlertModal() {
 
   const mediumCount = state.alerts.filter((alert) => getAlertSeverity(alert) === "medium").length;
   const urgentCount = state.alerts.filter((alert) => getAlertSeverity(alert) === "urgent").length;
-  const sectorLabels = ["Solda", "Calderaria", "Inspeção", "Pintura"];
-  const sectorCounts = Object.fromEntries(sectorLabels.map((label) => [label, state.alerts.filter((alert) => normalizeText(alert.sector) === normalizeText(label)).length]));
+  const sectorButtons = [
+    { key: "solda", label: "Solda", match: ["Solda"] },
+    { key: "calderaria", label: "Calderaria", match: ["Calderaria"] },
+    { key: "inspecao", label: "Inspeção", match: ["Inspeção"] },
+    { key: "pintura", label: "Pintura", match: ["Pintura"] },
+    { key: "envio", label: "Pendente de envio", match: ["Envio", "Pendente de envio"] },
+  ];
+  const sectorCounts = Object.fromEntries(
+    sectorButtons.map((button) => [
+      button.key,
+      state.alerts.filter((alert) => button.match.some((label) => normalizeText(alert.sector) === normalizeText(label))).length,
+    ])
+  );
   const filteredAlerts = getFilteredAlerts();
 
   const filterBar = `
@@ -660,7 +671,7 @@ function renderAlertModal() {
       </div>
       <div class="alert-filter-bar alert-filter-bar--sector">
         <button type="button" class="alert-filter-button ${state.alertSectorFilter === "all" ? "is-active" : ""}" data-alert-sector="all">Todos os setores <strong>${state.alerts.length}</strong></button>
-        ${sectorLabels.map((label) => `<button type="button" class="alert-filter-button alert-filter-button--sector ${state.alertSectorFilter === normalizeText(label) ? "is-active" : ""}" data-alert-sector="${normalizeText(label)}">${label} <strong>${sectorCounts[label]}</strong></button>`).join("")}
+        ${sectorButtons.map((button) => `<button type="button" class="alert-filter-button alert-filter-button--sector ${state.alertSectorFilter === button.key ? "is-active" : ""}" data-alert-sector="${button.key}">${button.label} <strong>${sectorCounts[button.key]}</strong></button>`).join("")}
       </div>
     </div>
   `;
