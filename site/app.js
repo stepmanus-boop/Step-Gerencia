@@ -353,17 +353,31 @@ function renderStats() {
   document.getElementById("stat-projects").textContent = formatNumber(state.stats.totalProjects);
   document.getElementById("stat-spools").textContent = `${formatNumber(weekWeight, 0)} kg`;
   document.getElementById("stat-total-weight").textContent = `${formatNumber(state.stats.totalWeightKg, 0)} kg`;
+
   const currentWeekEl = document.getElementById("stat-current-week");
   if (currentWeekEl) currentWeekEl.textContent = activeWeek;
 
-  document.getElementById("stat-completed").textContent = formatNumber(state.stats.completed);
+  const setTags = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = `Tags ${formatNumber(value ?? 0)}`;
+  };
+
+  document.getElementById("stat-not-started").textContent = formatNumber(state.stats.notStarted);
+  setTags("stat-not-started-tags", state.stats.notStartedTags);
+
   document.getElementById("stat-in-progress").textContent = formatNumber(state.stats.inProgress);
+  setTags("stat-in-progress-tags", state.stats.inProgressTags);
+
   const inspectionEl = document.getElementById("stat-inspection");
   if (inspectionEl) inspectionEl.textContent = formatNumber(state.stats.inspectionProjects);
+  setTags("stat-inspection-tags", state.stats.inspectionTags);
+
   const awaitingEl = document.getElementById("stat-awaiting-shipment");
   if (awaitingEl) awaitingEl.textContent = formatNumber(state.stats.awaitingShipment);
-  document.getElementById("stat-not-started").textContent = formatNumber(state.stats.notStarted);
-  document.getElementById("stat-average").textContent = formatPercent(state.stats.averageOverallProgress);
+  setTags("stat-awaiting-tags", state.stats.awaitingShipmentTags);
+
+  document.getElementById("stat-completed").textContent = formatNumber(state.stats.completed);
+  setTags("stat-completed-tags", state.stats.completedTags);
 }
 
 function renderTable() {

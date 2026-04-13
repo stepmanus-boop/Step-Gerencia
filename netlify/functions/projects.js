@@ -820,17 +820,23 @@ function buildStats(projects) {
     totalWeldedWeightKg: 0,
     totalPaintingM2: 0,
     completed: 0,
+    completedTags: 0,
     inProgress: 0,
+    inProgressTags: 0,
     inspectionProjects: 0,
+    inspectionTags: 0,
     awaitingShipment: 0,
+    awaitingShipmentTags: 0,
     notStarted: 0,
+    notStartedTags: 0,
     averageOverallProgress: 0,
   };
 
   let progressAccumulator = 0;
 
   for (const project of projects) {
-    stats.totalSpools += project.quantitySpools || 0;
+    const tags = Number(project.quantitySpools || 0);
+    stats.totalSpools += tags;
     stats.totalWeightKg += project.kilos || 0;
     stats.totalWeldedWeightKg += project.weldedWeightKg || 0;
     stats.totalPaintingM2 += project.m2Painting || 0;
@@ -839,15 +845,21 @@ function buildStats(projects) {
     const state = project.operationalState || project.uiState;
     if (state === "completed") {
       stats.completed += 1;
+      stats.completedTags += tags;
     } else if (state === "awaiting_shipment") {
       stats.awaitingShipment += 1;
+      stats.awaitingShipmentTags += tags;
       stats.completed += 1;
+      stats.completedTags += tags;
     } else if (state === "in_inspection") {
       stats.inspectionProjects += 1;
+      stats.inspectionTags += tags;
     } else if (state === "in_production") {
       stats.inProgress += 1;
+      stats.inProgressTags += tags;
     } else {
       stats.notStarted += 1;
+      stats.notStartedTags += tags;
     }
   }
 
