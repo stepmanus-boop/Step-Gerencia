@@ -183,10 +183,6 @@ body.modal-open { overflow: hidden; }
   line-height: 1;
 }
 
-.summary-card--hidden {
-  display: none;
-}
-
 .summary-card--success strong,.summary-card--success .summary-label { color: var(--success); }
 .summary-card--warning strong,.summary-card--warning .summary-label { color: var(--warning); }
 .summary-card--danger strong,.summary-card--danger .summary-label { color: var(--danger); }
@@ -772,14 +768,3 @@ button.alert-badge {
 .alert-item--clickable:active {
   transform: translateY(0);
 }
-
-.summary-card--painting .summary-label,
-.summary-card--painting strong { color: #ffb21a; }
-.summary-card--shipment .summary-label,
-.summary-card--shipment strong { color: #2ed5ff; }
-.summary-card--inspection .summary-label,
-.summary-card--inspection strong { color: #4db8ff; }
-.metric-chip--button { cursor: pointer; text-align: left; }
-.metric-chip--button:hover { border-color: rgba(255,178,26,0.45); box-shadow: 0 0 0 1px rgba(255,178,26,0.12) inset; }
-.panel--detail-nohead { grid-template-rows: minmax(0,1fr); }
-.panel--detail-nohead .detail-card { height: 100%; }

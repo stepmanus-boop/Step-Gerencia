@@ -574,7 +574,6 @@ function buildSpoolRow(row, parentSummary) {
     plannedFinishDate: formatDateValue(textValue(row, "Finish Date")),
     kilos: parseNumber(row, "Kilos"),
     weldedWeightKg,
-    backlogKg: Math.max(0, (parseNumber(row, "Kilos") || 0) - (weldedWeightKg || 0)),
     weldingWeek,
     coatingPercent,
     m2Painting: parseNumber(row, "M2 Painting"),
@@ -639,7 +638,6 @@ function buildProject(summaryRow, childRows) {
     quantitySpools: parseNumber(summaryRow, "Quantity Spools") ?? spools.length,
     kilos: parseNumber(summaryRow, "Kilos"),
     weldedWeightKg,
-    backlogKg: Math.max(0, (parseNumber(summaryRow, "Kilos") || 0) - (weldedWeightKg || 0)),
     weldingWeek,
     coatingPercent,
     m2Painting: parseNumber(summaryRow, "M2 Painting"),
@@ -827,8 +825,6 @@ function buildStats(projects) {
     inProgressTags: 0,
     inspectionProjects: 0,
     inspectionTags: 0,
-    paintingProjects: 0,
-    paintingTags: 0,
     awaitingShipment: 0,
     awaitingShipmentTags: 0,
     notStarted: 0,
@@ -859,13 +855,8 @@ function buildStats(projects) {
       stats.inspectionProjects += 1;
       stats.inspectionTags += tags;
     } else if (state === "in_production") {
-      if ((project.operationalSector || "") === "Pintura") {
-        stats.paintingProjects += 1;
-        stats.paintingTags += tags;
-      } else {
-        stats.inProgress += 1;
-        stats.inProgressTags += tags;
-      }
+      stats.inProgress += 1;
+      stats.inProgressTags += tags;
     } else {
       stats.notStarted += 1;
       stats.notStartedTags += tags;
