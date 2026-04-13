@@ -152,7 +152,7 @@ body.modal-open { overflow: hidden; }
 
 .summary-row {
   display: grid;
-  grid-template-columns: repeat(9, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -181,6 +181,10 @@ body.modal-open { overflow: hidden; }
 .summary-card strong {
   font-size: clamp(28px, 1.9vw, 40px);
   line-height: 1;
+}
+
+.summary-card--hidden {
+  display: none;
 }
 
 .summary-card--success strong,.summary-card--success .summary-label { color: var(--success); }
