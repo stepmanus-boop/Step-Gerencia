@@ -586,6 +586,7 @@ function buildSpoolRow(row, parentSummary) {
     milestones: progress.milestones,
     stageValues,
     finished: finished,
+    projectFinishedFlag,
     uiState,
   };
 }
@@ -596,7 +597,8 @@ function buildProject(summaryRow, childRows) {
   const progress = deriveProgress(summaryRow);
   const overallProgress = parsePercent(summaryRow, "% Overall Progress") ?? 0;
   const individualProgress = parsePercent(summaryRow, "% Individual Progress") ?? overallProgress;
-  const finished = isTruthyValue(getCellValue(summaryRow, "Project Finished?").raw) || overallProgress >= 100 || (parsePercent(summaryRow, "Package and Delivered") ?? 0) >= 100;
+  const projectFinishedFlag = isTruthyValue(getCellValue(summaryRow, "Project Finished?").raw);
+  const finished = projectFinishedFlag || overallProgress >= 100 || (parsePercent(summaryRow, "Package and Delivered") ?? 0) >= 100;
   const projectStatus = textValue(summaryRow, "PROJECT STATUS") || textValue(summaryRow, "Overall Project Status") || textValue(summaryRow, "Status");
   const coatingPercent = parsePercent(summaryRow, "Surface preparation and/or coating") ?? 0;
   const fabricationStartDate = textValue(summaryRow, "Fabrication Start Date");
@@ -845,14 +847,19 @@ function buildStats(projects) {
     progressAccumulator += project.overallProgress || 0;
 
     const state = project.operationalState || project.uiState;
+    const excludeFromCompletedCounts = Boolean(project.projectFinishedFlag);
     if (state === "completed") {
-      stats.completed += 1;
-      stats.completedTags += tags;
+      if (!excludeFromCompletedCounts) {
+        stats.completed += 1;
+        stats.completedTags += tags;
+      }
     } else if (state === "awaiting_shipment") {
-      stats.awaitingShipment += 1;
-      stats.awaitingShipmentTags += tags;
-      stats.completed += 1;
-      stats.completedTags += tags;
+      if (!excludeFromCompletedCounts) {
+        stats.awaitingShipment += 1;
+        stats.awaitingShipmentTags += tags;
+        stats.completed += 1;
+        stats.completedTags += tags;
+      }
     } else if (state === "in_inspection") {
       stats.inspectionProjects += 1;
       stats.inspectionTags += tags;
