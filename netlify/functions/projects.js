@@ -369,6 +369,58 @@ function projectUiState(projectStatus, overallProgress, finished, fabricationSta
   return "in_progress";
 }
 
+function classifyAlertSector(project) {
+  const stage = String(project?.currentStage || project?.jobProcessStatus || "").toLowerCase();
+
+  if (
+    stage.includes('paint') ||
+    stage.includes('coating') ||
+    stage.includes('surface preparation') ||
+    stage.includes('surface preparation and/or coating') ||
+    stage.includes('hdg') ||
+    stage.includes('fbe')
+  ) {
+    return 'Pintura';
+  }
+
+  if (
+    stage.includes('inspection') ||
+    stage.includes('nondestructive') ||
+    stage.includes('non destructive') ||
+    stage.includes('dimensional') ||
+    stage.includes('hydro test') ||
+    stage.includes('qc') ||
+    stage.includes('th finish') ||
+    stage.includes('final inspection')
+  ) {
+    return 'Inspeção';
+  }
+
+  if (
+    stage.includes('welding') ||
+    stage.includes('solda') ||
+    stage.includes('spool assemble') ||
+    stage.includes('tack weld')
+  ) {
+    return 'Solda';
+  }
+
+  if (
+    stage.includes('boilermaker') ||
+    stage.includes('caldeiraria') ||
+    stage.includes('material release') ||
+    stage.includes('material separation') ||
+    stage.includes('withdrew material') ||
+    stage.includes('drawing execution') ||
+    stage.includes('procurement') ||
+    stage.includes('fabrication')
+  ) {
+    return 'Calderaria';
+  }
+
+  return 'Geral';
+}
+
 function isSummaryRow(row) {
   const projectText = textValue(row, "Project");
   if (!projectText) return false;
