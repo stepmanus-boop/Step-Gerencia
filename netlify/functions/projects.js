@@ -655,6 +655,7 @@ function getProjectAlert(project, today = getCurrentBrazilDateObject()) {
     return {
       projectDisplay: project.projectDisplay,
       projectNumber: project.projectNumber,
+      projectRowId: project.rowId,
       client: project.client,
       sector: classifyAlertSector(project),
       plannedFinishDate: project.plannedFinishDate,
@@ -673,6 +674,7 @@ function getProjectAlert(project, today = getCurrentBrazilDateObject()) {
     return {
       projectDisplay: project.projectDisplay,
       projectNumber: project.projectNumber,
+      projectRowId: project.rowId,
       client: project.client,
       sector: classifyAlertSector(project),
       plannedFinishDate: project.plannedFinishDate,

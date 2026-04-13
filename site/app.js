@@ -666,7 +666,7 @@ function renderAlertModal() {
         ? `${Math.abs(alert.daysRemaining)} dia(s) em atraso`
         : `${alert.daysRemaining} dia(s) para o término planejado`;
       return `
-        <article class="alert-item alert-item--${tone}">
+        <article class="alert-item alert-item--${tone} alert-item--clickable" data-alert-project-id="${alert.projectRowId || ""}" data-alert-project-number="${escapeHtml(alert.projectNumber || "")}">
           <div class="alert-item-head">
             <strong>${escapeHtml(projectLine)}</strong>
             <div class="alert-tag-group">
@@ -688,6 +688,20 @@ function renderAlertModal() {
     .join("");
 
   alertModalContentEl.innerHTML = `${filterBar}<div class="alert-list">${items}</div>`;
+}
+
+
+function findProjectFromAlertElement(element) {
+  if (!element) return null;
+  const projectId = Number(element.dataset.alertProjectId || 0);
+  if (projectId) {
+    const direct = state.projects.find((project) => project.rowId === projectId);
+    if (direct) return direct;
+  }
+
+  const projectNumber = normalizeText(element.dataset.alertProjectNumber || "");
+  if (!projectNumber) return null;
+  return state.projects.find((project) => normalizeText(project.projectNumber) === projectNumber || normalizeText(project.projectDisplay) === projectNumber) || null;
 }
 
 function openAlertModal(force = false) {
@@ -841,6 +855,19 @@ function bindEvents() {
       if (sectorButton) {
         state.alertSectorFilter = sectorButton.dataset.alertSector || "all";
         renderAlertModal();
+        return;
+      }
+
+      const alertItem = event.target.closest("[data-alert-project-id], [data-alert-project-number]");
+      if (alertItem) {
+        const project = findProjectFromAlertElement(alertItem);
+        if (!project) return;
+        closeAlertModal();
+        state.selectedProjectId = project.rowId;
+        applyFilter();
+        renderTable();
+        renderSelectedProjectCard();
+        openProjectModal(project);
       }
     });
   }
