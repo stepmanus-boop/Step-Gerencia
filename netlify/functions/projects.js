@@ -400,7 +400,7 @@ function getOperationalFlow(stageValues, fabricationStartDate, coatingPercent, f
   const inspectionComplete = Boolean(thFinishDate) && finalDimensionalQc >= 100 && ndeQc >= 100 && hydroTestQc >= 100;
   if (!inspectionComplete) return { state: "in_inspection", sector: "Inspeção" };
 
-  if (Number(coatingPercent || 0) >= 100) return { state: "awaiting_shipment", sector: "Pintura" };
+  if (Number(coatingPercent || 0) >= 100) return { state: "awaiting_shipment", sector: "Envio" };
   return { state: "in_production", sector: "Pintura" };
 }
 
