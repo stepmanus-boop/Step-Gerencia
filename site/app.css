@@ -152,7 +152,7 @@ body.modal-open { overflow: hidden; }
 
 .summary-row {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -189,11 +189,12 @@ body.modal-open { overflow: hidden; }
 .summary-card--accent strong,.summary-card--accent .summary-label { color: var(--accent-2); }
 .summary-card--inspection strong,.summary-card--inspection .summary-label { color: #56d2ff; }
 .summary-card--shipment strong,.summary-card--shipment .summary-label { color: #6ff0ff; }
+.summary-card--painting strong,.summary-card--painting .summary-label { color: #f79d34; }
 
 .content-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(360px, 0.85fr);
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
@@ -209,7 +210,7 @@ body.modal-open { overflow: hidden; }
   grid-template-rows: auto auto minmax(0, 1fr);
 }
 
-.panel--detail { grid-template-rows: auto minmax(0, 1fr); }
+.panel--detail { grid-template-rows: auto minmax(0, 1fr); display:none; }
 
 .panel-head {
   display: flex;
