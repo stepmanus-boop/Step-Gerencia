@@ -39,7 +39,7 @@
         </div>
       </header>
 
-      <section class="summary-row summary-row--eight">
+      <section class="summary-row summary-row--nine">
         <article class="summary-card">
           <span class="summary-label">Total de projetos</span>
           <strong id="stat-projects">--</strong>
@@ -68,13 +68,18 @@
           <span class="summary-subtext" id="stat-inspection-tags">Tags --</span>
           <strong id="stat-inspection">--</strong>
         </article>
+        <article class="summary-card summary-card--painting">
+          <span class="summary-label">Projetos Em pintura</span>
+          <span class="summary-subtext" id="stat-painting-tags">Tags --</span>
+          <strong id="stat-painting">--</strong>
+        </article>
         <article class="summary-card summary-card--shipment">
           <span class="summary-label">Projetos Aguardando envio</span>
           <span class="summary-subtext" id="stat-awaiting-tags">Tags --</span>
           <strong id="stat-awaiting-shipment">--</strong>
         </article>
         <article class="summary-card summary-card--success">
-          <span class="summary-label">Projetos Concluídos</span>
+          <span class="summary-label">Projetos Concluídos e Aguardando envio</span>
           <span class="summary-subtext" id="stat-completed-tags">Tags --</span>
           <strong id="stat-completed">--</strong>
         </article>
@@ -140,21 +145,14 @@
               </thead>
               <tbody id="projects-body">
                 <tr>
-                  <td colspan="14" class="loading-cell">Carregando projetos...</td>
+                  <td colspan="16" class="loading-cell">Carregando projetos...</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
 
-        <aside class="panel panel--detail">
-          <div class="panel-head panel-head--detail">
-            <div>
-              <h2>Consulta operacional</h2>
-              <p>Selecione um projeto para visualizar os itens internos em janela detalhada.</p>
-            </div>
-            <div class="autoplay-pill">VIEW</div>
-          </div>
+        <aside class="panel panel--detail panel--detail-nohead">
 
           <div class="detail-card" id="detail-card">
             <div class="detail-placeholder">Selecione um projeto na tabela ou pela busca para abrir o popup.</div>

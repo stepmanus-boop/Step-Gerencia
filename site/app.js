@@ -12,6 +12,7 @@ const state = {
   alertFilter: "all",
   alertSectorFilter: "all",
   selectedProjectId: null,
+  pendingSpoolFilter: false,
   pollTimer: null,
 };
 
@@ -372,6 +373,10 @@ function renderStats() {
   if (inspectionEl) inspectionEl.textContent = formatNumber(state.stats.inspectionProjects);
   setTags("stat-inspection-tags", state.stats.inspectionTags);
 
+  const paintingEl = document.getElementById("stat-painting");
+  if (paintingEl) paintingEl.textContent = formatNumber(state.stats.paintingProjects);
+  setTags("stat-painting-tags", state.stats.paintingTags);
+
   const awaitingEl = document.getElementById("stat-awaiting-shipment");
   if (awaitingEl) awaitingEl.textContent = formatNumber(state.stats.awaitingShipment);
   setTags("stat-awaiting-tags", state.stats.awaitingShipmentTags);
@@ -444,6 +449,7 @@ function renderSelectedProjectCard() {
 
   const statusText = translateProjectStatus(project.projectStatus, project.uiState);
   const matchedSpools = project.spools?.length || 0;
+  const backlogKg = Math.max(0, Number(project.backlogKg || 0));
 
   detailCardEl.innerHTML = `
     <div class="detail-hero compact">
@@ -458,6 +464,9 @@ function renderSelectedProjectCard() {
       <div class="detail-grid compact-grid">
         <div class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></div>
         <div class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></div>
+        <button type="button" class="metric-chip metric-chip--button" data-open-pending="true">
+          <span>Backlog KG</span><strong>${formatNumber(backlogKg, 0)} kg</strong>
+        </button>
         <div class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></div>
         <div class="metric-chip"><span>Início planejado</span><strong>${project.plannedStartDate || "—"}</strong></div>
         <div class="metric-chip"><span>Término planejado</span><strong>${project.plannedFinishDate || "—"}</strong></div>
@@ -478,26 +487,20 @@ function renderSelectedProjectCard() {
           <span class="stage-name">${project.currentStage}</span>
         </div>
       </div>
-
-      <div class="detail-actions">
-        <button class="primary-button" type="button" id="open-selected-project">Abrir detalhamento completo</button>
-      </div>
     </div>
   `;
-
-  const button = document.getElementById("open-selected-project");
-  if (button) {
-    button.addEventListener("click", () => openProjectModal(project));
-  }
 }
 
-function renderModal(project) {
+function renderModal(project, options = {}) {
   const stageOrder = state.meta?.stageOrder || [];
+  const pendingOnly = Boolean(options.pendingOnly);
+  const sourceSpools = project.spools || [];
+  const modalSpools = pendingOnly ? sourceSpools.filter((spool) => Number(spool.backlogKg || 0) > 0) : sourceSpools;
   const milestoneList = (project.milestones || [])
     .map((item) => `<div class="milestone-chip"><span>${item.label}</span><strong>${item.value}</strong></div>`)
     .join("");
 
-  const spoolRows = (project.spools || [])
+  const spoolRows = modalSpools
     .map((spool) => {
       const stageColumns = stageOrder
         .map((stage) => {
@@ -533,12 +536,15 @@ function renderModal(project) {
   const statusText = translateProjectStatus(project.projectStatus, project.uiState);
 
   modalTitleEl.textContent = project.projectDisplay;
-  modalSubtitleEl.textContent = `${statusText} • ${project.spools?.length || 0} item(ns) interno(s)`;
+  modalSubtitleEl.textContent = pendingOnly
+    ? `Peças pendentes • ${modalSpools.length} item(ns) com backlog`
+    : `${statusText} • ${project.spools?.length || 0} item(ns) interno(s)`;
 
   modalContentEl.innerHTML = `
     <section class="modal-summary-grid">
       <article class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></article>
       <article class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></article>
+      <article class="metric-chip"><span>Backlog KG</span><strong>${formatNumber(project.backlogKg, 0)} kg</strong></article>
       <article class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></article>
       <article class="metric-chip"><span>Início planejado</span><strong>${project.plannedStartDate || "—"}</strong></article>
       <article class="metric-chip"><span>Término planejado</span><strong>${project.plannedFinishDate || "—"}</strong></article>
@@ -560,6 +566,7 @@ function renderModal(project) {
             <th>ISO</th>
             <th>Descrição</th>
             <th>Observações</th>
+            <th>Backlog KG</th>
             <th>Peso soldado</th>
             <th>Semana finalizado</th>
             <th>Peso</th>
@@ -579,17 +586,19 @@ function renderModal(project) {
   `;
 }
 
-function openProjectModal(project) {
+function openProjectModal(project, options = {}) {
   state.selectedProjectId = project.rowId;
+  state.pendingSpoolFilter = Boolean(options.pendingOnly);
   renderTable();
   renderSelectedProjectCard();
-  renderModal(project);
+  renderModal(project, options);
   modalEl.classList.remove("hidden");
   modalEl.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
 }
 
 function closeProjectModal() {
+  state.pendingSpoolFilter = false;
   modalEl.classList.add("hidden");
   modalEl.setAttribute("aria-hidden", "true");
   if (alertModalEl.classList.contains("hidden")) {
@@ -842,6 +851,14 @@ function bindEvents() {
       renderStats();
     });
   }
+
+  detailCardEl.addEventListener("click", (event) => {
+    const pendingButton = event.target.closest("[data-open-pending=\"true\"]");
+    if (!pendingButton) return;
+    const project = getSelectedProject();
+    if (!project) return;
+    openProjectModal(project, { pendingOnly: true });
+  });
 
   bodyEl.addEventListener("click", (event) => {
     const row = event.target.closest("tr[data-project-id]");

@@ -152,7 +152,7 @@ body.modal-open { overflow: hidden; }
 
 .summary-row {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -768,3 +768,14 @@ button.alert-badge {
 .alert-item--clickable:active {
   transform: translateY(0);
 }
+
+.summary-card--painting .summary-label,
+.summary-card--painting strong { color: #ffb21a; }
+.summary-card--shipment .summary-label,
+.summary-card--shipment strong { color: #2ed5ff; }
+.summary-card--inspection .summary-label,
+.summary-card--inspection strong { color: #4db8ff; }
+.metric-chip--button { cursor: pointer; text-align: left; }
+.metric-chip--button:hover { border-color: rgba(255,178,26,0.45); box-shadow: 0 0 0 1px rgba(255,178,26,0.12) inset; }
+.panel--detail-nohead { grid-template-rows: minmax(0,1fr); }
+.panel--detail-nohead .detail-card { height: 100%; }
