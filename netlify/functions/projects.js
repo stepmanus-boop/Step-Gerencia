@@ -471,7 +471,6 @@ function classifyAlertSector(project) {
 
 function buildAlertObservation(project, sector, diffDays) {
   const stageLabel = project?.currentStage || project?.jobProcessStatus || 'Etapa não identificada';
-  const stageValues = project?.stageValues || {};
   const coatingPercent = Number(project?.coatingPercent || 0);
   const baseDaysText = diffDays < 0
     ? `O término planejado já venceu há ${Math.abs(diffDays)} dia(s).`
@@ -480,21 +479,21 @@ function buildAlertObservation(project, sector, diffDays) {
   if (coatingPercent >= 100) {
     return {
       title: diffDays < 0 ? 'Conferência em atraso' : 'Conferência pendente',
-      message: `${baseDaysText} A pintura já está em 100% e o projeto está em ${sector}, preso em ${stageLabel}. Conferir envio.`,
+      message: `${baseDaysText} A pintura já está em 100%. Conferir envio.`,
     };
   }
 
   if (sector === 'Calderaria') {
     return {
       title: diffDays < 0 ? 'Calderaria em atraso' : 'Calderaria em atenção',
-      message: `${baseDaysText} O projeto ainda está na Calderaria, preso em ${stageLabel}.`,
+      message: `${baseDaysText} O projeto ainda está na Calderaria.`,
     };
   }
 
   if (sector === 'Solda') {
     return {
       title: diffDays < 0 ? 'Solda em atraso' : 'Solda em atenção',
-      message: `${baseDaysText} O projeto ainda está na Solda, preso em ${stageLabel}.`,
+      message: `${baseDaysText} O projeto ainda está em Solda.`,
     };
   }
 
@@ -508,13 +507,13 @@ function buildAlertObservation(project, sector, diffDays) {
   if (sector === 'Pintura') {
     return {
       title: diffDays < 0 ? 'Pintura em atraso' : 'Pintura em atenção',
-      message: `${baseDaysText} O projeto ainda está na Pintura, preso em ${stageLabel}, com pintura em ${coatingPercent}%.`,
+      message: `${baseDaysText} O projeto ainda está na Pintura.`,
     };
   }
 
   return {
     title: diffDays < 0 ? 'Prazo vencido' : 'Prazo próximo',
-    message: `${baseDaysText} O projeto segue preso em ${stageLabel}.`,
+    message: `${baseDaysText} O projeto segue em andamento.`,
   };
 }
 
