@@ -849,9 +849,14 @@ function bindEvents() {
     const projectId = Number(row.dataset.projectId);
     const project = state.projects.find((item) => item.rowId === projectId);
     if (!project) return;
-    state.selectedProjectId = projectId;
-    renderTable();
-    renderSelectedProjectCard();
+
+    window.clearTimeout(state.rowClickTimer);
+    state.rowClickTimer = window.setTimeout(() => {
+      state.selectedProjectId = projectId;
+      renderTable();
+      renderSelectedProjectCard();
+      state.rowClickTimer = null;
+    }, 220);
   });
 
   bodyEl.addEventListener("dblclick", (event) => {
@@ -860,6 +865,9 @@ function bindEvents() {
     const projectId = Number(row.dataset.projectId);
     const project = state.projects.find((item) => item.rowId === projectId);
     if (!project) return;
+
+    window.clearTimeout(state.rowClickTimer);
+    state.rowClickTimer = null;
     state.selectedProjectId = projectId;
     renderTable();
     renderSelectedProjectCard();
