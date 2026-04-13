@@ -73,6 +73,63 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+function parseDateObject(value) {
+  if (value == null || value === "") return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  let match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const year = Number(match[3]);
+    return new Date(Date.UTC(year, month, day));
+  }
+
+  match = raw.match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const year = Number(match[3]) >= 70 ? 1900 + Number(match[3]) : 2000 + Number(match[3]);
+    return new Date(Date.UTC(year, month, day));
+  }
+
+  match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    return new Date(Date.UTC(year, month, day));
+  }
+
+  const date = new Date(raw);
+  if (!Number.isNaN(date.getTime())) {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  }
+
+  return null;
+}
+
+function compareProjectsByPlannedFinishDate(a, b) {
+  const left = parseDateObject(a?.plannedFinishDate);
+  const right = parseDateObject(b?.plannedFinishDate);
+
+  if (left && right) {
+    const diff = left.getTime() - right.getTime();
+    if (diff !== 0) return diff;
+  } else if (left && !right) {
+    return -1;
+  } else if (!left && right) {
+    return 1;
+  }
+
+  return String(a?.projectDisplay || "").localeCompare(String(b?.projectDisplay || ""), "pt-BR");
+}
+
 function getWeekAnchor(year) {
   const jan1 = new Date(Date.UTC(year, 0, 1));
   const anchor = new Date(jan1);
@@ -340,11 +397,13 @@ function applyFilter() {
   const query = normalizeText(state.searchQuery).trim();
   const demand = normalizeText(state.demandFilter).trim();
 
-  state.filteredProjects = state.projects.filter((project) => {
-    const matchesQuery = !query || project._searchText.includes(query);
-    const matchesDemand = !demand || normalizeText(project.currentStage).includes(demand) || normalizeText(translateProjectStatus(project.projectStatus, project.uiState)).includes(demand);
-    return matchesQuery && matchesDemand;
-  });
+  state.filteredProjects = state.projects
+    .filter((project) => {
+      const matchesQuery = !query || project._searchText.includes(query);
+      const matchesDemand = !demand || normalizeText(project.currentStage).includes(demand) || normalizeText(translateProjectStatus(project.projectStatus, project.uiState)).includes(demand);
+      return matchesQuery && matchesDemand;
+    })
+    .sort(compareProjectsByPlannedFinishDate);
 
   if (!state.filteredProjects.find((project) => project.rowId === state.selectedProjectId)) {
     state.selectedProjectId = state.filteredProjects[0]?.rowId || null;
@@ -411,7 +470,7 @@ function renderStats() {
 
 function renderTable() {
   if (!state.filteredProjects.length) {
-    bodyEl.innerHTML = '<tr><td colspan="16" class="loading-cell">Nenhum projeto encontrado para a busca informada.</td></tr>';
+    bodyEl.innerHTML = '<tr><td colspan="17" class="loading-cell">Nenhum projeto encontrado para a busca informada.</td></tr>';
     searchCountEl.textContent = "0 resultado(s)";
     return;
   }
@@ -437,7 +496,7 @@ function renderTable() {
 
       return `
         <tr class="${rowClass}" data-project-id="${project.rowId}">
-          <td>${projectDisplayWithClient(project)}</td>
+          <td>${project.projectDisplay || "—"}</td>
           <td>${formatNumber(project.quantitySpools)}</td>
           <td>${formatNumber(project.weldedWeightKg, 0)}</td>
           <td>${project.weldingWeek || "—"}</td>
@@ -453,6 +512,7 @@ function renderTable() {
           <td>${formatPercent(project.overallProgress)}</td>
           <td><span class="cell-status cell-status--${statusState}">${statusText}</span></td>
           <td>${stageMap["Fabrication Start Date"] || "—"}</td>
+          <td>${project.plannedFinishDate || "—"}</td>
           <td>${stageMap["Boilermaker Finish Date"] || "—"}</td>
           <td>${stageMap["Welding Finish Date"] || "—"}</td>
           <td>${stageMap["Inspection Finish Date (QC)"] || "—"}</td>
@@ -835,7 +895,7 @@ async function loadProjects() {
       renderAlertModal();
     }
   } catch (error) {
-    bodyEl.innerHTML = `<tr><td colspan="16" class="loading-cell">${error.message}</td></tr>`;
+    bodyEl.innerHTML = `<tr><td colspan="17" class="loading-cell">${error.message}</td></tr>`;
     detailCardEl.innerHTML = `<div class="detail-placeholder">${error.message}</div>`;
   }
 }
