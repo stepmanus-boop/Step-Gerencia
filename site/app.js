@@ -164,6 +164,13 @@ function getFilteredAlerts() {
   return alerts;
 }
 
+
+function projectDisplayWithClient(project) {
+  const projectName = String(project?.projectDisplay || '').trim();
+  const clientName = String(project?.client || '').trim();
+  return clientName ? `${projectName} - ${clientName}` : (projectName || '—');
+}
+
 function uiStateLabel(stateValue) {
   if (stateValue === "completed") return "Finalizado";
   if (stateValue === "awaiting_shipment") return "Aguardando envio";
@@ -430,7 +437,7 @@ function renderTable() {
 
       return `
         <tr class="${rowClass}" data-project-id="${project.rowId}">
-          <td>${project.projectDisplay}</td>
+          <td>${projectDisplayWithClient(project)}</td>
           <td>${formatNumber(project.quantitySpools)}</td>
           <td>${formatNumber(project.weldedWeightKg, 0)}</td>
           <td>${project.weldingWeek || "—"}</td>
@@ -472,13 +479,14 @@ function renderSelectedProjectCard() {
       <div class="detail-project-title">
         <div>
           <p class="detail-project-subtitle">Projeto selecionado</p>
-          <h3>${project.projectDisplay}</h3>
+          <h3>${projectDisplayWithClient(project)}</h3>
         </div>
         <span class="badge badge--${["awaiting_shipment", "completed"].includes(project.uiState) ? "completed" : project.uiState}">${statusText}</span>
       </div>
 
       <div class="detail-grid compact-grid">
         <div class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></div>
+        <div class="metric-chip"><span>Cliente</span><strong>${project.client || "—"}</strong></div>
         <div class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></div>
         <button class="metric-chip metric-chip--button" type="button" id="open-backlog-project">
           <span>Backlog KG</span><strong>${formatNumber(getBacklogKg(project), 0)} kg</strong>
@@ -563,12 +571,13 @@ function renderModal(project) {
   const stageHeaders = stageOrder.map((stage) => `<th>${stage.label}</th>`).join("");
   const statusText = translateProjectStatus(project.projectStatus, project.uiState);
 
-  modalTitleEl.textContent = project.projectDisplay;
+  modalTitleEl.textContent = projectDisplayWithClient(project);
   modalSubtitleEl.textContent = `${statusText} • ${state.modalPendingOnly ? getPendingSpools(project).length : (project.spools?.length || 0)} item(ns) interno(s)`;
 
   modalContentEl.innerHTML = `
     <section class="modal-summary-grid">
       <article class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></article>
+      <article class="metric-chip"><span>Cliente</span><strong>${project.client || "—"}</strong></article>
       <article class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></article>
       <article class="metric-chip metric-chip--button" id="modal-open-backlog" role="button" tabindex="0"><span>Backlog KG</span><strong>${formatNumber(getBacklogKg(project), 0)} kg</strong></article>
       <article class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></article>
