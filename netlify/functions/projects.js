@@ -603,6 +603,8 @@ function getProjectAlert(project, today = getCurrentBrazilDateObject()) {
     return {
       projectDisplay: project.projectDisplay,
       projectNumber: project.projectNumber,
+      client: project.client,
+      sector: classifyAlertSector(project),
       plannedFinishDate: project.plannedFinishDate,
       daysRemaining: diffDays,
       type: diffDays < 0 ? "overdue" : "deadline",
@@ -619,6 +621,8 @@ function getProjectAlert(project, today = getCurrentBrazilDateObject()) {
     return {
       projectDisplay: project.projectDisplay,
       projectNumber: project.projectNumber,
+      client: project.client,
+      sector: classifyAlertSector(project),
       plannedFinishDate: project.plannedFinishDate,
       daysRemaining: diffDays,
       type: diffDays < 0 ? "conference_overdue" : "conference",

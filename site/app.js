@@ -10,6 +10,7 @@ const state = {
   demandFilter: "",
   weekFilter: "",
   alertFilter: "all",
+  alertSectorFilter: "all",
   selectedProjectId: null,
   pollTimer: null,
 };
@@ -145,9 +146,19 @@ function getAlertSeverity(alert) {
 }
 
 function getFilteredAlerts() {
-  if (state.alertFilter === "medium") return state.alerts.filter((alert) => getAlertSeverity(alert) === "medium");
-  if (state.alertFilter === "urgent") return state.alerts.filter((alert) => getAlertSeverity(alert) === "urgent");
-  return state.alerts;
+  let alerts = [...state.alerts];
+
+  if (state.alertFilter === "medium") {
+    alerts = alerts.filter((alert) => getAlertSeverity(alert) === "medium");
+  } else if (state.alertFilter === "urgent") {
+    alerts = alerts.filter((alert) => getAlertSeverity(alert) === "urgent");
+  }
+
+  if (state.alertSectorFilter && state.alertSectorFilter !== "all") {
+    alerts = alerts.filter((alert) => normalizeText(alert.sector) === state.alertSectorFilter);
+  }
+
+  return alerts;
 }
 
 function uiStateLabel(stateValue) {
@@ -617,13 +628,21 @@ function renderAlertModal() {
 
   const mediumCount = state.alerts.filter((alert) => getAlertSeverity(alert) === "medium").length;
   const urgentCount = state.alerts.filter((alert) => getAlertSeverity(alert) === "urgent").length;
+  const sectorLabels = ["Solda", "Calderaria", "Inspeção", "Pintura"];
+  const sectorCounts = Object.fromEntries(sectorLabels.map((label) => [label, state.alerts.filter((alert) => normalizeText(alert.sector) === normalizeText(label)).length]));
   const filteredAlerts = getFilteredAlerts();
 
   const filterBar = `
-    <div class="alert-filter-bar">
-      <button type="button" class="alert-filter-button ${state.alertFilter === "all" ? "is-active" : ""}" data-alert-filter="all">Tudo <strong>${state.alerts.length}</strong></button>
-      <button type="button" class="alert-filter-button alert-filter-button--medium ${state.alertFilter === "medium" ? "is-active" : ""}" data-alert-filter="medium">Médio <strong>${mediumCount}</strong></button>
-      <button type="button" class="alert-filter-button alert-filter-button--urgent ${state.alertFilter === "urgent" ? "is-active" : ""}" data-alert-filter="urgent">Urgente <strong>${urgentCount}</strong></button>
+    <div class="alert-filter-stack">
+      <div class="alert-filter-bar">
+        <button type="button" class="alert-filter-button ${state.alertFilter === "all" ? "is-active" : ""}" data-alert-filter="all">Tudo <strong>${state.alerts.length}</strong></button>
+        <button type="button" class="alert-filter-button alert-filter-button--medium ${state.alertFilter === "medium" ? "is-active" : ""}" data-alert-filter="medium">Médio <strong>${mediumCount}</strong></button>
+        <button type="button" class="alert-filter-button alert-filter-button--urgent ${state.alertFilter === "urgent" ? "is-active" : ""}" data-alert-filter="urgent">Urgente <strong>${urgentCount}</strong></button>
+      </div>
+      <div class="alert-filter-bar alert-filter-bar--sector">
+        <button type="button" class="alert-filter-button ${state.alertSectorFilter === "all" ? "is-active" : ""}" data-alert-sector="all">Todos os setores <strong>${state.alerts.length}</strong></button>
+        ${sectorLabels.map((label) => `<button type="button" class="alert-filter-button alert-filter-button--sector ${state.alertSectorFilter === normalizeText(label) ? "is-active" : ""}" data-alert-sector="${normalizeText(label)}">${label} <strong>${sectorCounts[label]}</strong></button>`).join("")}
+      </div>
     </div>
   `;
 
@@ -642,15 +661,17 @@ function renderAlertModal() {
       const severity = getAlertSeverity(alert);
       const tone = severity === "urgent" ? "overdue" : "conference";
       const severityLabel = severity === "urgent" ? "Urgente" : "Médio";
+      const projectLine = [alert.projectDisplay, alert.client].filter(Boolean).join(" ");
       const daysLabel = alert.daysRemaining < 0
         ? `${Math.abs(alert.daysRemaining)} dia(s) em atraso`
         : `${alert.daysRemaining} dia(s) para o término planejado`;
       return `
         <article class="alert-item alert-item--${tone}">
           <div class="alert-item-head">
-            <strong>${escapeHtml(alert.projectDisplay)}</strong>
+            <strong>${escapeHtml(projectLine)}</strong>
             <div class="alert-tag-group">
               <span class="alert-item-tag alert-item-tag--${severity}">${severityLabel}</span>
+              <span class="alert-item-tag alert-item-tag--sector">${escapeHtml(alert.sector || "Geral")}</span>
               <span class="alert-item-tag">${escapeHtml(alert.title)}</span>
             </div>
           </div>
@@ -658,6 +679,7 @@ function renderAlertModal() {
             <span>Término planejado: <strong>${escapeHtml(alert.plannedFinishDate || "—")}</strong></span>
             <span>${escapeHtml(daysLabel)}</span>
             <span>Pintura: <strong>${formatPercent(alert.coatingPercent)}</strong></span>
+            <span>Etapa: <strong>${escapeHtml(alert.currentStage || "—")}</strong></span>
           </div>
           <p>${escapeHtml(alert.message)}</p>
         </article>
@@ -811,6 +833,13 @@ function bindEvents() {
       const filterButton = event.target.closest("[data-alert-filter]");
       if (filterButton) {
         state.alertFilter = filterButton.dataset.alertFilter || "all";
+        renderAlertModal();
+        return;
+      }
+
+      const sectorButton = event.target.closest("[data-alert-sector]");
+      if (sectorButton) {
+        state.alertSectorFilter = sectorButton.dataset.alertSector || "all";
         renderAlertModal();
       }
     });

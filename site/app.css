@@ -731,3 +731,23 @@ button.alert-badge {
   border: 1px solid rgba(255, 95, 126, 0.28);
   color: #ffd4dc;
 }
+
+
+.alert-filter-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.alert-filter-bar--sector {
+  padding-top: 0;
+}
+
+.alert-filter-button--sector {
+  border-color: rgba(46, 213, 255, 0.22);
+}
+
+.alert-item-tag--sector {
+  background: rgba(46, 213, 255, 0.08);
+  border-color: rgba(46, 213, 255, 0.22);
+  color: #8feaff;
+}
