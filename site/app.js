@@ -350,14 +350,24 @@ function renderStats() {
   if (!state.stats) return;
   const activeWeek = getActiveWeekLabel();
   const weekWeight = getWeldedWeightForWeek(activeWeek);
+  const completedForOperations = Number(state.stats.completed || 0) + Number(state.stats.awaitingShipment || 0);
+
   document.getElementById("stat-projects").textContent = formatNumber(state.stats.totalProjects);
   document.getElementById("stat-spools").textContent = `${formatNumber(weekWeight, 0)} kg`;
   document.getElementById("stat-total-weight").textContent = `${formatNumber(state.stats.totalWeightKg, 0)} kg`;
+
   const currentWeekEl = document.getElementById("stat-current-week");
   if (currentWeekEl) currentWeekEl.textContent = activeWeek;
 
-  document.getElementById("stat-completed").textContent = formatNumber(state.stats.completed);
+  document.getElementById("stat-completed").textContent = formatNumber(completedForOperations);
   document.getElementById("stat-in-progress").textContent = formatNumber(state.stats.inProgress);
+
+  const inspectionEl = document.getElementById("stat-inspection");
+  if (inspectionEl) inspectionEl.textContent = formatNumber(state.stats.inspectionProjects);
+
+  const awaitingEl = document.getElementById("stat-awaiting-shipment");
+  if (awaitingEl) awaitingEl.textContent = formatNumber(state.stats.awaitingShipment);
+
   document.getElementById("stat-not-started").textContent = formatNumber(state.stats.notStarted);
   document.getElementById("stat-average").textContent = formatPercent(state.stats.averageOverallProgress);
 }
