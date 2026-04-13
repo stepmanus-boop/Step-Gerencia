@@ -497,6 +497,7 @@ function renderTable() {
       return `
         <tr class="${rowClass}" data-project-id="${project.rowId}">
           <td>${project.projectDisplay || "—"}</td>
+          <td>${project.plannedFinishDate || "—"}</td>
           <td>${formatNumber(project.quantitySpools)}</td>
           <td>${formatNumber(project.weldedWeightKg, 0)}</td>
           <td>${project.weldingWeek || "—"}</td>
@@ -512,7 +513,6 @@ function renderTable() {
           <td>${formatPercent(project.overallProgress)}</td>
           <td><span class="cell-status cell-status--${statusState}">${statusText}</span></td>
           <td>${stageMap["Fabrication Start Date"] || "—"}</td>
-          <td>${project.plannedFinishDate || "—"}</td>
           <td>${stageMap["Boilermaker Finish Date"] || "—"}</td>
           <td>${stageMap["Welding Finish Date"] || "—"}</td>
           <td>${stageMap["Inspection Finish Date (QC)"] || "—"}</td>
