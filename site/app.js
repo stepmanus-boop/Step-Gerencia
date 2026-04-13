@@ -12,7 +12,6 @@ const state = {
   alertFilter: "all",
   alertSectorFilter: "all",
   selectedProjectId: null,
-  modalSpoolFilter: "all",
   pollTimer: null,
 };
 
@@ -373,10 +372,6 @@ function renderStats() {
   if (inspectionEl) inspectionEl.textContent = formatNumber(state.stats.inspectionProjects);
   setTags("stat-inspection-tags", state.stats.inspectionTags);
 
-  const paintingEl = document.getElementById("stat-painting");
-  if (paintingEl) paintingEl.textContent = formatNumber(state.stats.paintingProjects);
-  setTags("stat-painting-tags", state.stats.paintingTags);
-
   const awaitingEl = document.getElementById("stat-awaiting-shipment");
   if (awaitingEl) awaitingEl.textContent = formatNumber(state.stats.awaitingShipment);
   setTags("stat-awaiting-tags", state.stats.awaitingShipmentTags);
@@ -462,8 +457,7 @@ function renderSelectedProjectCard() {
 
       <div class="detail-grid compact-grid">
         <div class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></div>
-        <button class="metric-chip metric-chip--action" type="button" id="open-pending-selected"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></button>
-        <button class="metric-chip metric-chip--action" type="button" id="open-backlog-selected"><span>Backlog KG</span><strong>${formatNumber(project.backlogKg, 0)} kg</strong></button>
+        <div class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></div>
         <div class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></div>
         <div class="metric-chip"><span>Início planejado</span><strong>${project.plannedStartDate || "—"}</strong></div>
         <div class="metric-chip"><span>Término planejado</span><strong>${project.plannedFinishDate || "—"}</strong></div>
@@ -495,28 +489,15 @@ function renderSelectedProjectCard() {
   if (button) {
     button.addEventListener("click", () => openProjectModal(project));
   }
-  const backlogButton = document.getElementById("open-backlog-selected");
-  if (backlogButton) {
-    backlogButton.addEventListener("click", () => openProjectModal(project, "pending"));
-  }
-  const soldadoButton = document.getElementById("open-pending-selected");
-  if (soldadoButton) {
-    soldadoButton.addEventListener("click", () => openProjectModal(project));
-  }
 }
 
 function renderModal(project) {
   const stageOrder = state.meta?.stageOrder || [];
-  const modalFilter = state.modalSpoolFilter || "all";
-  const sourceSpools = project.spools || [];
-  const filteredSpools = modalFilter === "pending"
-    ? sourceSpools.filter((spool) => (spool.backlogKg || 0) > 0.001)
-    : sourceSpools;
   const milestoneList = (project.milestones || [])
     .map((item) => `<div class="milestone-chip"><span>${item.label}</span><strong>${item.value}</strong></div>`)
     .join("");
 
-  const spoolRows = filteredSpools
+  const spoolRows = (project.spools || [])
     .map((spool) => {
       const stageColumns = stageOrder
         .map((stage) => {
@@ -552,13 +533,12 @@ function renderModal(project) {
   const statusText = translateProjectStatus(project.projectStatus, project.uiState);
 
   modalTitleEl.textContent = project.projectDisplay;
-  modalSubtitleEl.textContent = `${statusText} • ${filteredSpools.length || 0} item(ns) ${modalFilter === "pending" ? "pendente(s)" : "interno(s)"}`;
+  modalSubtitleEl.textContent = `${statusText} • ${project.spools?.length || 0} item(ns) interno(s)`;
 
   modalContentEl.innerHTML = `
     <section class="modal-summary-grid">
       <article class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></article>
-      <button class="metric-chip metric-chip--action ${modalFilter === "all" ? "metric-chip--active" : ""}" type="button" data-modal-filter="all"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></button>
-      <button class="metric-chip metric-chip--action ${modalFilter === "pending" ? "metric-chip--active" : ""}" type="button" data-modal-filter="pending"><span>Backlog KG</span><strong>${formatNumber(project.backlogKg, 0)} kg</strong></button>
+      <article class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></article>
       <article class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></article>
       <article class="metric-chip"><span>Início planejado</span><strong>${project.plannedStartDate || "—"}</strong></article>
       <article class="metric-chip"><span>Término planejado</span><strong>${project.plannedFinishDate || "—"}</strong></article>
@@ -599,9 +579,8 @@ function renderModal(project) {
   `;
 }
 
-function openProjectModal(project, modalFilter = "all") {
+function openProjectModal(project) {
   state.selectedProjectId = project.rowId;
-  state.modalSpoolFilter = modalFilter;
   renderTable();
   renderSelectedProjectCard();
   renderModal(project);
@@ -873,7 +852,7 @@ function bindEvents() {
     state.selectedProjectId = projectId;
     renderTable();
     renderSelectedProjectCard();
-    openProjectModal(project, "all");
+    openProjectModal(project);
   });
 
   modalEl.addEventListener("click", (event) => {
@@ -918,7 +897,7 @@ function bindEvents() {
         applyFilter();
         renderTable();
         renderSelectedProjectCard();
-        openProjectModal(project, "all");
+        openProjectModal(project);
       }
     });
   }
@@ -931,14 +910,6 @@ function bindEvents() {
   }
 
   modalContentEl.addEventListener("click", (event) => {
-    const filterButton = event.target.closest("[data-modal-filter]");
-    if (filterButton) {
-      state.modalSpoolFilter = filterButton.dataset.modalFilter || "all";
-      const project = getSelectedProject();
-      if (project) renderModal(project);
-      return;
-    }
-
     const row = event.target.closest("tr[data-modal-row='true']");
     if (!row) return;
     modalContentEl.querySelectorAll("tr[data-modal-row='true'].modal-row-selected").forEach((item) => {
