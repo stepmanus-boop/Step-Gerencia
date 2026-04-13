@@ -360,65 +360,48 @@ function deriveProgress(row) {
   return { currentStage, completedStages, milestones };
 }
 
-function getOperationalPhaseData(row) {
-  const fabricationStartDate = textValue(row, "Fabrication Start Date");
-  const boilermakerFinishDate = textValue(row, "Boilermaker Finish Date");
-  const weldingFinishDate = textValue(row, "Welding Finish Date");
-  const thFinishDate = textValue(row, "TH Finish Date");
-  const projectFinishDate = textValue(row, "Project Finish Date");
-
-  const withdrewMaterial = parsePercent(row, "Withdrew Material") ?? 0;
-  const weldingPreparation = parsePercent(row, "Welding Preparation") ?? 0;
-  const spoolAssemble = parsePercent(row, "Spool Assemble and tack weld") ?? 0;
-  const fullWelding = parsePercent(row, "Full welding execution") ?? 0;
-  const initialDimensional = parsePercent(row, "Initial Dimensional Inspection/3D") ?? 0;
-  const finalDimensionalQc = parsePercent(row, "Final Dimensional Inpection/3D (QC)") ?? 0;
-  const ndeQc = parsePercent(row, "Non Destructive Examination (QC)") ?? 0;
-  const hydroTestQc = parsePercent(row, "Hydro Test Pressure (QC)") ?? 0;
-  const coatingPercent = parsePercent(row, "Surface preparation and/or coating") ?? 0;
-  const packageDelivered = parsePercent(row, "Package and Delivered") ?? 0;
-  const projectFinished = isTruthyValue(textValue(row, "Project Finished?") || getCellValue(row, "Project Finished?").raw);
-
-  const calderariaDone = Boolean(boilermakerFinishDate) && withdrewMaterial >= 100 && weldingPreparation >= 100 && spoolAssemble >= 100;
-  const soldaDone = Boolean(weldingFinishDate) && fullWelding >= 100 && initialDimensional >= 100;
-  const inspeccaoDone = Boolean(thFinishDate) && finalDimensionalQc >= 100 && ndeQc >= 100 && hydroTestQc >= 100;
-  const awaitingShipment = coatingPercent >= 100 && packageDelivered < 100 && !projectFinished && !projectFinishDate;
-  const completed = packageDelivered >= 100 || projectFinished || Boolean(projectFinishDate);
-
-  let operationalSector = "Geral";
-  if (!fabricationStartDate) operationalSector = "Não iniciado";
-  else if (!calderariaDone) operationalSector = "Calderaria";
-  else if (!soldaDone) operationalSector = "Solda";
-  else if (!inspeccaoDone) operationalSector = "Inspeção";
-  else if (coatingPercent < 100) operationalSector = "Pintura";
-  else if (awaitingShipment) operationalSector = "Aguardando envio";
-  else if (completed) operationalSector = "Finalizado";
-
-  let uiState = "in_progress";
-  if (!fabricationStartDate) uiState = "not_started";
-  else if (completed) uiState = "completed";
-  else if (awaitingShipment) uiState = "awaiting_shipment";
-  else uiState = "in_progress";
-
-  return {
-    fabricationStartDate,
-    boilermakerFinishDate,
-    weldingFinishDate,
-    thFinishDate,
-    coatingPercent,
-    awaitingShipment,
-    completed,
-    operationalSector,
-    uiState,
-  };
-}
-
 function projectUiState(projectStatus, overallProgress, finished, fabricationStartDate, awaitingShipment = false) {
   if (!fabricationStartDate) return "not_started";
-  if (finished || overallProgress >= 100) return "completed";
   if (awaitingShipment) return "awaiting_shipment";
+  if (finished || overallProgress >= 100) return "completed";
   if (overallProgress <= 0 && /^on hold$/i.test(projectStatus || "")) return "not_started";
+  if (overallProgress <= 0) return "not_started";
   return "in_progress";
+}
+
+function getOperationalFlow(stageValues, fabricationStartDate, coatingPercent, finished, projectStatus) {
+  const fabricationStarted = Boolean(fabricationStartDate);
+  const boilermakerFinishDate = stageValues["Boilermaker Finish Date"];
+  const weldingFinishDate = stageValues["Welding Finish Date"];
+  const thFinishDate = stageValues["TH Finish Date"];
+  const projectFinishDate = stageValues["Project Finish Date"];
+
+  const withdrewMaterial = Number(stageValues["Withdrew Material"] || 0);
+  const weldingPreparation = Number(stageValues["Welding Preparation"] || 0);
+  const spoolAssemble = Number(stageValues["Spool Assemble and tack weld"] || 0);
+  const fullWelding = Number(stageValues["Full welding execution"] || 0);
+  const initialDimensional = Number(stageValues["Initial Dimensional Inspection/3D"] || 0);
+  const finalDimensionalQc = Number(stageValues["Final Dimensional Inpection/3D (QC)"] || 0);
+  const ndeQc = Number(stageValues["Non Destructive Examination (QC)"] || 0);
+  const hydroTestQc = Number(stageValues["Hydro Test Pressure (QC)"] || 0);
+  const packageDelivered = Number(stageValues["Package and Delivered"] || 0);
+  const projectFinished = String(stageValues["Project Finished?"] || "").toLowerCase() === "sim";
+
+  const delivered = finished || packageDelivered >= 100 || Boolean(projectFinishDate) || projectFinished;
+  if (!fabricationStarted) return { state: "not_started", sector: "Geral" };
+  if (delivered) return { state: "completed", sector: "Geral" };
+
+  const calderariaComplete = Boolean(boilermakerFinishDate) && withdrewMaterial >= 100 && weldingPreparation >= 100 && spoolAssemble >= 100;
+  if (!calderariaComplete) return { state: "in_production", sector: "Calderaria" };
+
+  const soldaComplete = Boolean(weldingFinishDate) && fullWelding >= 100 && initialDimensional >= 100;
+  if (!soldaComplete) return { state: "in_production", sector: "Solda" };
+
+  const inspectionComplete = Boolean(thFinishDate) && finalDimensionalQc >= 100 && ndeQc >= 100 && hydroTestQc >= 100;
+  if (!inspectionComplete) return { state: "in_inspection", sector: "Inspeção" };
+
+  if (Number(coatingPercent || 0) >= 100) return { state: "awaiting_shipment", sector: "Pintura" };
+  return { state: "in_production", sector: "Pintura" };
 }
 
 function classifyStageSector(stageValue) {
@@ -474,14 +457,20 @@ function classifyStageSector(stageValue) {
 }
 
 function classifyAlertSector(project) {
-  const sector = String(project?.operationalSector || "").trim();
-  if (["Calderaria", "Solda", "Inspeção", "Pintura"].includes(sector)) return sector;
-  if (sector === "Aguardando envio") return "Pintura";
-  return classifyStageSector(project?.currentStage || project?.jobProcessStatus || "");
+  if (project?.operationalSector) return project.operationalSector;
+  const stageValues = project?.stageValues || {};
+  const flow = getOperationalFlow(
+    stageValues,
+    project?.fabricationStartDate,
+    project?.coatingPercent,
+    project?.finished,
+    project?.projectStatus,
+  );
+  return flow.sector || 'Geral';
 }
 
 function buildAlertObservation(project, sector, diffDays) {
-  const stageLabel = project?.currentStage || project?.jobProcessStatus || "Etapa não identificada";
+  const stageLabel = project?.currentStage || project?.jobProcessStatus || 'Etapa não identificada';
   const coatingPercent = Number(project?.coatingPercent || 0);
   const baseDaysText = diffDays < 0
     ? `O término planejado já venceu há ${Math.abs(diffDays)} dia(s).`
@@ -489,41 +478,41 @@ function buildAlertObservation(project, sector, diffDays) {
 
   if (coatingPercent >= 100) {
     return {
-      title: diffDays < 0 ? "Conferência em atraso" : "Conferência pendente",
+      title: diffDays < 0 ? 'Conferência em atraso' : 'Conferência pendente',
       message: `${baseDaysText} A pintura já está em 100%. Conferir envio.`,
     };
   }
 
-  if (sector === "Calderaria") {
+  if (sector === 'Calderaria') {
     return {
-      title: diffDays < 0 ? "Calderaria em atraso" : "Calderaria em atenção",
+      title: diffDays < 0 ? 'Calderaria em atraso' : 'Calderaria em atenção',
       message: `${baseDaysText} O projeto ainda está na Calderaria.`,
     };
   }
 
-  if (sector === "Solda") {
+  if (sector === 'Solda') {
     return {
-      title: diffDays < 0 ? "Solda em atraso" : "Solda em atenção",
+      title: diffDays < 0 ? 'Solda em atraso' : 'Solda em atenção',
       message: `${baseDaysText} O projeto ainda está em Solda.`,
     };
   }
 
-  if (sector === "Inspeção") {
+  if (sector === 'Inspeção') {
     return {
-      title: diffDays < 0 ? "Inspeção em atraso" : "Inspeção em atenção",
+      title: diffDays < 0 ? 'Inspeção em atraso' : 'Inspeção em atenção',
       message: `${baseDaysText} O projeto ainda está na Inspeção, preso em ${stageLabel}.`,
     };
   }
 
-  if (sector === "Pintura") {
+  if (sector === 'Pintura') {
     return {
-      title: diffDays < 0 ? "Pintura em atraso" : "Pintura em atenção",
+      title: diffDays < 0 ? 'Pintura em atraso' : 'Pintura em atenção',
       message: `${baseDaysText} O projeto ainda está na Pintura.`,
     };
   }
 
   return {
-    title: diffDays < 0 ? "Prazo vencido" : "Prazo próximo",
+    title: diffDays < 0 ? 'Prazo vencido' : 'Prazo próximo',
     message: `${baseDaysText} O projeto segue em andamento.`,
   };
 }
@@ -554,12 +543,13 @@ function buildSpoolRow(row, parentSummary) {
   const progress = deriveProgress(row);
   const overallProgress = parsePercent(row, "% Overall Progress") ?? parsePercent(parentSummary, "% Overall Progress") ?? 0;
   const individualProgress = parsePercent(row, "% Individual Progress") ?? overallProgress;
-  const phase = getOperationalPhaseData(row);
-  const finished = phase.completed;
-  const awaitingShipment = phase.awaitingShipment;
-  const fabricationStartDate = phase.fabricationStartDate;
-  const uiState = phase.uiState;
-  const coatingPercent = phase.coatingPercent;
+  const finished = isTruthyValue(getCellValue(row, "Project Finished?").raw) || overallProgress >= 100 || (parsePercent(row, "Package and Delivered") ?? 0) >= 100;
+  const fabricationStartDate = textValue(row, "Fabrication Start Date");
+  const stageValues = buildStageValues(row);
+  const flow = getOperationalFlow(stageValues, fabricationStartDate, parsePercent(row, "Surface preparation and/or coating") ?? 0, finished, textValue(row, "PROJECT STATUS"));
+  const awaitingShipment = flow.state === "awaiting_shipment";
+  const uiState = flow.state === "in_inspection" ? "in_progress" : projectUiState(textValue(row, "PROJECT STATUS"), overallProgress, finished, fabricationStartDate, awaitingShipment);
+  const coatingPercent = parsePercent(row, "Surface preparation and/or coating") ?? 0;
   const weldingPercent = parsePercent(row, "Full welding execution") ?? 0;
   const weldingFinishDate = textValue(row, "Welding Finish Date");
   const weldedWeightKg = (() => {
@@ -578,6 +568,8 @@ function buildSpoolRow(row, parentSummary) {
     description: parsedDrawing.description,
     drawing: drawingText,
     observations: textValue(row, "OBSERVATIONS"),
+    operationalSector: flow.sector,
+    operationalState: flow.state,
     plannedStartDate: formatDateValue(textValue(row, "Start Date")),
     plannedFinishDate: formatDateValue(textValue(row, "Finish Date")),
     kilos: parseNumber(row, "Kilos"),
@@ -592,10 +584,9 @@ function buildSpoolRow(row, parentSummary) {
     individualProgress,
     overallProgress,
     milestones: progress.milestones,
-    stageValues: buildStageValues(row),
-    finished,
+    stageValues,
+    finished: finished,
     uiState,
-    operationalSector: phase.operationalSector,
   };
 }
 
@@ -605,13 +596,14 @@ function buildProject(summaryRow, childRows) {
   const progress = deriveProgress(summaryRow);
   const overallProgress = parsePercent(summaryRow, "% Overall Progress") ?? 0;
   const individualProgress = parsePercent(summaryRow, "% Individual Progress") ?? overallProgress;
-  const phase = getOperationalPhaseData(summaryRow);
-  const finished = phase.completed;
+  const finished = isTruthyValue(getCellValue(summaryRow, "Project Finished?").raw) || overallProgress >= 100 || (parsePercent(summaryRow, "Package and Delivered") ?? 0) >= 100;
   const projectStatus = textValue(summaryRow, "PROJECT STATUS") || textValue(summaryRow, "Overall Project Status") || textValue(summaryRow, "Status");
-  const awaitingShipment = phase.awaitingShipment;
-  const coatingPercent = phase.coatingPercent;
-  const fabricationStartDate = phase.fabricationStartDate;
-  const uiState = phase.uiState;
+  const coatingPercent = parsePercent(summaryRow, "Surface preparation and/or coating") ?? 0;
+  const fabricationStartDate = textValue(summaryRow, "Fabrication Start Date");
+  const stageValues = buildStageValues(summaryRow);
+  const flow = getOperationalFlow(stageValues, fabricationStartDate, coatingPercent, finished, projectStatus);
+  const awaitingShipment = flow.state === "awaiting_shipment";
+  const uiState = flow.state === "in_inspection" ? "in_progress" : projectUiState(projectStatus, overallProgress, finished, fabricationStartDate, awaitingShipment);
   const weldingPercent = parsePercent(summaryRow, "Full welding execution") ?? 0;
   const weldingFinishDate = textValue(summaryRow, "Welding Finish Date");
   const spools = childRows.map((row) => buildSpoolRow(row, summaryRow));
@@ -635,7 +627,7 @@ function buildProject(summaryRow, childRows) {
     return acc;
   }, { total: 0, completed: 0, inProgress: 0, notStarted: 0 });
 
-  const operationalSector = phase.operationalSector;
+  const operationalSector = flow.sector;
 
   return {
     rowId: summaryRow.id,
@@ -666,10 +658,11 @@ function buildProject(summaryRow, childRows) {
     vessel: textValue(summaryRow, "Vessel"),
     className: textValue(summaryRow, "Class"),
     milestones: progress.milestones,
-    stageValues: buildStageValues(summaryRow),
-    finished,
+    stageValues,
+    finished: finished,
     uiState,
     operationalSector,
+    operationalState: flow.state,
     spools,
     spoolStats,
   };
@@ -843,11 +836,19 @@ function buildStats(projects) {
     stats.totalPaintingM2 += project.m2Painting || 0;
     progressAccumulator += project.overallProgress || 0;
 
-    if (project.uiState === "completed") stats.completed += 1;
-    else if (project.uiState === "awaiting_shipment") stats.awaitingShipment += 1;
-    else if (project.operationalSector === "Inspeção") stats.inspectionProjects += 1;
-    else if (project.uiState === "in_progress") stats.inProgress += 1;
-    else stats.notStarted += 1;
+    const state = project.operationalState || project.uiState;
+    if (state === "completed") {
+      stats.completed += 1;
+    } else if (state === "awaiting_shipment") {
+      stats.awaitingShipment += 1;
+      stats.completed += 1;
+    } else if (state === "in_inspection") {
+      stats.inspectionProjects += 1;
+    } else if (state === "in_production") {
+      stats.inProgress += 1;
+    } else {
+      stats.notStarted += 1;
+    }
   }
 
   stats.averageOverallProgress = projects.length ? progressAccumulator / projects.length : 0;
