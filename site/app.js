@@ -9,6 +9,7 @@ const state = {
   searchQuery: "",
   demandFilter: "",
   weekFilter: "",
+  alertFilter: "all",
   selectedProjectId: null,
   pollTimer: null,
 };
@@ -135,6 +136,18 @@ function compareWeekLabels(a, b) {
   if (left.year !== right.year) return left.year - right.year;
   if (left.week !== right.week) return left.week - right.week;
   return String(a || "").localeCompare(String(b || ""), "pt-BR");
+}
+
+function getAlertSeverity(alert) {
+  const type = String(alert?.type || "").toLowerCase();
+  if (type.includes("overdue") || type.includes("urgent") || type.includes("deadline")) return "urgent";
+  return "medium";
+}
+
+function getFilteredAlerts() {
+  if (state.alertFilter === "medium") return state.alerts.filter((alert) => getAlertSeverity(alert) === "medium");
+  if (state.alertFilter === "urgent") return state.alerts.filter((alert) => getAlertSeverity(alert) === "urgent");
+  return state.alerts;
 }
 
 function uiStateLabel(stateValue) {
@@ -601,14 +614,34 @@ function renderAlertBadge() {
 
 function renderAlertModal() {
   if (!alertModalContentEl) return;
+
+  const mediumCount = state.alerts.filter((alert) => getAlertSeverity(alert) === "medium").length;
+  const urgentCount = state.alerts.filter((alert) => getAlertSeverity(alert) === "urgent").length;
+  const filteredAlerts = getFilteredAlerts();
+
+  const filterBar = `
+    <div class="alert-filter-bar">
+      <button type="button" class="alert-filter-button ${state.alertFilter === "all" ? "is-active" : ""}" data-alert-filter="all">Tudo <strong>${state.alerts.length}</strong></button>
+      <button type="button" class="alert-filter-button alert-filter-button--medium ${state.alertFilter === "medium" ? "is-active" : ""}" data-alert-filter="medium">Médio <strong>${mediumCount}</strong></button>
+      <button type="button" class="alert-filter-button alert-filter-button--urgent ${state.alertFilter === "urgent" ? "is-active" : ""}" data-alert-filter="urgent">Urgente <strong>${urgentCount}</strong></button>
+    </div>
+  `;
+
   if (!state.alerts.length) {
-    alertModalContentEl.innerHTML = '<div class="alert-empty">Nenhum prazo em alerta no momento.</div>';
+    alertModalContentEl.innerHTML = `${filterBar}<div class="alert-empty">Nenhum prazo em alerta no momento.</div>`;
     return;
   }
 
-  const items = state.alerts
+  if (!filteredAlerts.length) {
+    alertModalContentEl.innerHTML = `${filterBar}<div class="alert-empty">Nenhum alerta encontrado para este filtro.</div>`;
+    return;
+  }
+
+  const items = filteredAlerts
     .map((alert) => {
-      const tone = alert.type?.includes("conference") ? "conference" : (alert.type === "overdue" ? "overdue" : "deadline");
+      const severity = getAlertSeverity(alert);
+      const tone = severity === "urgent" ? "overdue" : "conference";
+      const severityLabel = severity === "urgent" ? "Urgente" : "Médio";
       const daysLabel = alert.daysRemaining < 0
         ? `${Math.abs(alert.daysRemaining)} dia(s) em atraso`
         : `${alert.daysRemaining} dia(s) para o término planejado`;
@@ -616,7 +649,10 @@ function renderAlertModal() {
         <article class="alert-item alert-item--${tone}">
           <div class="alert-item-head">
             <strong>${escapeHtml(alert.projectDisplay)}</strong>
-            <span class="alert-item-tag">${escapeHtml(alert.title)}</span>
+            <div class="alert-tag-group">
+              <span class="alert-item-tag alert-item-tag--${severity}">${severityLabel}</span>
+              <span class="alert-item-tag">${escapeHtml(alert.title)}</span>
+            </div>
           </div>
           <div class="alert-item-meta">
             <span>Término planejado: <strong>${escapeHtml(alert.plannedFinishDate || "—")}</strong></span>
@@ -629,7 +665,7 @@ function renderAlertModal() {
     })
     .join("");
 
-  alertModalContentEl.innerHTML = `<div class="alert-list">${items}</div>`;
+  alertModalContentEl.innerHTML = `${filterBar}<div class="alert-list">${items}</div>`;
 }
 
 function openAlertModal(force = false) {
@@ -769,6 +805,13 @@ function bindEvents() {
     alertModalEl.addEventListener("click", (event) => {
       if (event.target.matches("[data-close-alert='true']")) {
         closeAlertModal();
+        return;
+      }
+
+      const filterButton = event.target.closest("[data-alert-filter]");
+      if (filterButton) {
+        state.alertFilter = filterButton.dataset.alertFilter || "all";
+        renderAlertModal();
       }
     });
   }
