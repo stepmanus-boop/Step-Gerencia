@@ -574,7 +574,7 @@ function buildSpoolRow(row, parentSummary) {
     plannedFinishDate: formatDateValue(textValue(row, "Finish Date")),
     kilos: parseNumber(row, "Kilos"),
     weldedWeightKg,
-    backlogKg: Math.max((parseNumber(row, "Kilos") || 0) - (weldedWeightKg || 0), 0),
+    backlogKg: Math.max((parseNumber(summaryRow, "Kilos") || 0) - (weldedWeightKg || 0), 0),
     weldingWeek,
     coatingPercent,
     m2Painting: parseNumber(row, "M2 Painting"),
