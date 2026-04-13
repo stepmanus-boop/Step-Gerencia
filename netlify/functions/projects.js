@@ -825,6 +825,8 @@ function buildStats(projects) {
     inProgressTags: 0,
     inspectionProjects: 0,
     inspectionTags: 0,
+    paintingProjects: 0,
+    paintingTags: 0,
     awaitingShipment: 0,
     awaitingShipmentTags: 0,
     notStarted: 0,
@@ -855,8 +857,13 @@ function buildStats(projects) {
       stats.inspectionProjects += 1;
       stats.inspectionTags += tags;
     } else if (state === "in_production") {
-      stats.inProgress += 1;
-      stats.inProgressTags += tags;
+      if (project.operationalSector === "Pintura") {
+        stats.paintingProjects += 1;
+        stats.paintingTags += tags;
+      } else {
+        stats.inProgress += 1;
+        stats.inProgressTags += tags;
+      }
     } else {
       stats.notStarted += 1;
       stats.notStartedTags += tags;
