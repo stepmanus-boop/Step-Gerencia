@@ -872,8 +872,6 @@ function buildStats(projects) {
       if (!excludeFromCompletedCounts) {
         stats.awaitingShipment += 1;
         stats.awaitingShipmentTags += tags;
-        stats.completed += 1;
-        stats.completedTags += tags;
       }
     } else if (state === "in_inspection") {
       stats.inspectionProjects += 1;

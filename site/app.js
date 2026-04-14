@@ -479,8 +479,8 @@ function renderStats() {
   setTags("stat-painting-tags", state.stats.paintingTags);
 
   const awaitingEl = document.getElementById("stat-awaiting-shipment");
-  if (awaitingEl) awaitingEl.textContent = formatNumber(state.stats.completed);
-  setTags("stat-awaiting-tags", state.stats.completedTags);
+  if (awaitingEl) awaitingEl.textContent = formatNumber(state.stats.awaitingShipment);
+  setTags("stat-awaiting-tags", state.stats.awaitingShipmentTags);
 
   const completedEl = document.getElementById("stat-completed");
   if (completedEl) completedEl.textContent = formatNumber(state.stats.completed);
