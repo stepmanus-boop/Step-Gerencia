@@ -606,7 +606,13 @@ function renderModal(project) {
     .join("");
 
   const sourceSpools = state.modalPendingOnly ? getPendingSpools(project) : (project.spools || []);
-  const spoolRows = sourceSpools
+  const sortedSpools = [...sourceSpools].sort((a, b) => {
+    const aProgress = Number.isFinite(Number(a?.individualProgress)) ? Number(a.individualProgress) : 999999;
+    const bProgress = Number.isFinite(Number(b?.individualProgress)) ? Number(b.individualProgress) : 999999;
+    if (aProgress !== bProgress) return aProgress - bProgress;
+    return String(a?.iso || '').localeCompare(String(b?.iso || ''), 'pt-BR', { numeric: true, sensitivity: 'base' });
+  });
+  const spoolRows = sortedSpools
     .map((spool) => {
       const stageColumns = stageOrder
         .map((stage) => {
