@@ -338,6 +338,7 @@ function buildDemandOptions() {
   const hiddenDemandOptions = new Set([
     normalizeText("Project Finished?"),
     normalizeText("Drawing Execution"),
+    normalizeText("Emissão de detalhamento"),
   ]);
 
   const options = Array.from(

@@ -13,27 +13,27 @@ const cache = global.__STEP_PROGRESS_CACHE__ || {
 global.__STEP_PROGRESS_CACHE__ = cache;
 
 const STAGE_ORDER = [
-  { key: "Drawing Execution Advance%", label: "Drawing Execution", type: "percent" },
-  { key: "Procuremnt Status %", label: "Procurement Status", type: "percent" },
+  { key: "Drawing Execution Advance%", label: "Emissão de detalhamento", type: "percent" },
+  { key: "Procuremnt Status %", label: "Aguardando material", type: "percent" },
   { key: "Material Separation", label: "Material Separation", type: "percent" },
-  { key: "Material Release to Fabrication", label: "Material Release to Fabrication", type: "percent" },
+  { key: "Material Release to Fabrication", label: "Aguardando material", type: "percent" },
   { key: "Fabrication Start Date", label: "Fabrication Start Date", type: "date" },
   { key: "Withdrew Material", label: "Withdrew Material", type: "percent" },
   { key: "Welding Preparation", label: "Welding Preparation", type: "percent" },
   { key: "Spool Assemble and tack weld", label: "Spool Assemble and tack weld", type: "percent" },
   { key: "Boilermaker Finish Date", label: "Boilermaker Finish Date", type: "date" },
   { key: "Initial Dimensional Inspection/3D", label: "Initial Dimensional Inspection/3D", type: "percent" },
-  { key: "Full welding execution", label: "Full welding execution", type: "percent" },
+  { key: "Full welding execution", label: "SOLDA", type: "percent" },
   { key: "Welding Finish Date", label: "Welding Finish Date", type: "date" },
-  { key: "Final Dimensional Inpection/3D (QC)", label: "Final Dimensional Inpection/3D (QC)", type: "percent" },
-  { key: "Non Destructive Examination (QC)", label: "Non Destructive Examination (QC)", type: "percent" },
+  { key: "Final Dimensional Inpection/3D (QC)", label: "DMA/3D", type: "percent" },
+  { key: "Non Destructive Examination (QC)", label: "Aguardando END", type: "percent" },
   { key: "Inspection Finish Date (QC)", label: "Inspection Finish Date (QC)", type: "date" },
   { key: "Hydro Test Pressure (QC)", label: "Hydro Test Pressure (QC)", type: "percent" },
   { key: "TH Finish Date", label: "TH Finish Date", type: "date" },
   { key: "HDG / FBE.  (PAINT)", label: "HDG / FBE. (PAINT)", type: "percent", optional: true },
   { key: "HDG / FBE DATE SAIDA (PAINT)", label: "HDG / FBE DATE SAIDA (PAINT)", type: "date", optional: true },
   { key: "HDG / FBE DATE RETORNO (PAINT)", label: "HDG / FBE DATE RETORNO (PAINT)", type: "date", optional: true },
-  { key: "Surface preparation and/or coating", label: "Surface preparation and/or coating", type: "percent" },
+  { key: "Surface preparation and/or coating", label: "Pintura", type: "percent" },
   { key: "Coating Finish Date", label: "Coating Finish Date", type: "date", optional: true },
   { key: "Final Inspection", label: "Final Inspection", type: "percent" },
   { key: "Package and Delivered", label: "Package and Delivered", type: "percent" },
@@ -872,6 +872,8 @@ function buildStats(projects) {
       if (!excludeFromCompletedCounts) {
         stats.awaitingShipment += 1;
         stats.awaitingShipmentTags += tags;
+        stats.completed += 1;
+        stats.completedTags += tags;
       }
     } else if (state === "in_inspection") {
       stats.inspectionProjects += 1;
