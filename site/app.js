@@ -439,6 +439,15 @@ function getPendingSpools(project) {
   });
 }
 
+function getBacklogItemCount(project) {
+  return getPendingSpools(project).length;
+}
+
+function formatBacklogItemText(project) {
+  const count = getBacklogItemCount(project);
+  return `${formatNumber(count)} ${count === 1 ? "produto em produção" : "produtos em produção"}`;
+}
+
 function renderStats() {
   if (!state.stats) return;
   const activeWeek = getActiveWeekLabel();
@@ -559,12 +568,12 @@ function renderSelectedProjectCard() {
         <div class="metric-chip"><span>Cliente</span><strong>${project.client || "—"}</strong></div>
         <div class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></div>
         <button class="metric-chip metric-chip--button" type="button" id="open-backlog-project">
-          <span>Backlog KG</span><strong>${formatNumber(getBacklogKg(project), 0)} kg</strong>
+          <span>Backlog KG</span><strong>${formatNumber(getBacklogKg(project), 0)} kg</strong><small>${formatBacklogItemText(project)}</small>
         </button>
         <div class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></div>
         <div class="metric-chip"><span>Início planejado</span><strong>${project.plannedStartDate || "—"}</strong></div>
         <div class="metric-chip"><span>Término planejado</span><strong>${project.plannedFinishDate || "—"}</strong></div>
-        <div class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 2)}</strong></div>
+        <div class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 0)}</strong></div>
         <div class="metric-chip"><span>Painting</span><strong>${formatNumber(project.m2Painting, 3)}</strong></div>
         <div class="metric-chip"><span>% Individual</span><strong>${formatPercent(project.individualProgress)}</strong></div>
         <div class="metric-chip"><span>% Geral</span><strong>${formatPercent(project.overallProgress)}</strong></div>
@@ -655,11 +664,11 @@ function renderModal(project) {
       <article class="metric-chip"><span>Qtd. itens</span><strong>${formatNumber(project.quantitySpools)}</strong></article>
       <article class="metric-chip"><span>Cliente</span><strong>${project.client || "—"}</strong></article>
       <article class="metric-chip"><span>Peso total soldado</span><strong>${formatNumber(project.weldedWeightKg, 0)} kg</strong></article>
-      <article class="metric-chip metric-chip--button" id="modal-open-backlog" role="button" tabindex="0"><span>Backlog KG</span><strong>${formatNumber(getBacklogKg(project), 0)} kg</strong></article>
+      <article class="metric-chip metric-chip--button" id="modal-open-backlog" role="button" tabindex="0"><span>Backlog KG</span><strong>${formatNumber(getBacklogKg(project), 0)} kg</strong><small>${formatBacklogItemText(project)}</small></article>
       <article class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></article>
       <article class="metric-chip"><span>Início planejado</span><strong>${project.plannedStartDate || "—"}</strong></article>
       <article class="metric-chip"><span>Término planejado</span><strong>${project.plannedFinishDate || "—"}</strong></article>
-      <article class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 2)}</strong></article>
+      <article class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 0)}</strong></article>
       <article class="metric-chip"><span>Painting total</span><strong>${formatNumber(project.m2Painting, 3)}</strong></article>
       <article class="metric-chip"><span>% Individual</span><strong>${formatPercent(project.individualProgress)}</strong></article>
       <article class="metric-chip"><span>% Geral</span><strong>${formatPercent(project.overallProgress)}</strong></article>
