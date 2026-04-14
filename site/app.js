@@ -11,6 +11,7 @@ const state = {
   weekFilter: "",
   alertFilter: "all",
   alertSectorFilter: "all",
+  alertClientQuery: "",
   selectedProjectId: null,
   modalPendingOnly: false,
   rowClickTimer: null,
@@ -207,6 +208,7 @@ function getAlertSeverity(alert) {
 
 function getFilteredAlerts() {
   let alerts = [...state.alerts];
+  const clientQuery = normalizeText(state.alertClientQuery).trim();
 
   if (state.alertFilter === "medium") {
     alerts = alerts.filter((alert) => getAlertSeverity(alert) === "medium");
@@ -216,6 +218,13 @@ function getFilteredAlerts() {
 
   if (state.alertSectorFilter && state.alertSectorFilter !== "all") {
     alerts = alerts.filter((alert) => normalizeText(alert.sector) === state.alertSectorFilter);
+  }
+
+  if (clientQuery) {
+    alerts = alerts.filter((alert) => {
+      const haystack = normalizeText([alert.client, alert.projectDisplay, alert.projectNumber].filter(Boolean).join(" | "));
+      return haystack.includes(clientQuery);
+    });
   }
 
   return alerts;
@@ -312,6 +321,7 @@ function enrichProjects(projects) {
       project.projectPrefix,
       project.currentStage,
       project.projectStatus,
+      project.client,
       ...(project.spools || []).flatMap((spool) => [spool.iso, spool.description, spool.drawing]),
     ];
 
@@ -776,6 +786,10 @@ function renderAlertModal() {
         <button type="button" class="alert-filter-button ${state.alertSectorFilter === "all" ? "is-active" : ""}" data-alert-sector="all">Todos os setores <strong>${state.alerts.length}</strong></button>
         ${sectorButtons.map((button) => `<button type="button" class="alert-filter-button alert-filter-button--sector ${state.alertSectorFilter === button.key ? "is-active" : ""}" data-alert-sector="${button.key}">${button.label} <strong>${sectorCounts[button.key]}</strong></button>`).join("")}
       </div>
+      <label class="alert-client-search">
+        <span>Buscar cliente</span>
+        <input type="text" value="${escapeHtml(state.alertClientQuery)}" placeholder="Ex.: Prio" data-alert-client-search="true" autocomplete="off" />
+      </label>
     </div>
   `;
 
@@ -1010,6 +1024,11 @@ function bindEvents() {
         return;
       }
 
+      const clientSearchInput = event.target.closest("[data-alert-client-search]");
+      if (clientSearchInput) {
+        return;
+      }
+
       const alertItem = event.target.closest("[data-alert-project-id], [data-alert-project-number]");
       if (alertItem) {
         const project = findProjectFromAlertElement(alertItem);
@@ -1020,6 +1039,19 @@ function bindEvents() {
         renderTable();
         renderSelectedProjectCard();
         openProjectModal(project);
+      }
+    });
+
+    alertModalEl.addEventListener("input", (event) => {
+      const clientInput = event.target.closest("[data-alert-client-search]");
+      if (!clientInput) return;
+      const caret = clientInput.selectionStart ?? clientInput.value.length;
+      state.alertClientQuery = clientInput.value || "";
+      renderAlertModal();
+      const nextInput = alertModalEl.querySelector("[data-alert-client-search]");
+      if (nextInput) {
+        nextInput.focus();
+        nextInput.setSelectionRange(caret, caret);
       }
     });
   }
