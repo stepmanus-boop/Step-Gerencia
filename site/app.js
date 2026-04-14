@@ -351,22 +351,37 @@ async function downloadAlertsPdf() {
       'Prazo', 'Etapa atual', 'Pintura', 'Prioridade', 'Detalhe'
     ]],
     body: rows,
-    tableWidth: 'wrap',
-    styles: { font: 'helvetica', fontSize: 7.5, cellPadding: 1.8, overflow: 'linebreak', valign: 'middle' },
-    headStyles: { fillColor: [22, 83, 126], textColor: [255, 255, 255], fontStyle: 'bold' },
-    columnStyles: {
-      0: { cellWidth: 28 },
-      1: { cellWidth: 26 },
-      2: { cellWidth: 16 },
-      3: { cellWidth: 24 },
-      4: { cellWidth: 22 },
-      5: { cellWidth: 25 },
-      6: { cellWidth: 29 },
-      7: { cellWidth: 14 },
-      8: { cellWidth: 16 },
-      9: { cellWidth: 74 },
+    tableWidth: 'auto',
+    styles: {
+      font: 'helvetica',
+      fontSize: 7,
+      cellPadding: 1.4,
+      overflow: 'linebreak',
+      valign: 'middle',
+      lineColor: [220, 228, 236],
+      lineWidth: 0.1,
     },
-    margin: { top: 40, right: 10, bottom: 14, left: 10 },
+    headStyles: {
+      fillColor: [22, 83, 126],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 7,
+      cellPadding: 1.5,
+      halign: 'left',
+    },
+    columnStyles: {
+      0: { cellWidth: 24 },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 14 },
+      3: { cellWidth: 20 },
+      4: { cellWidth: 19 },
+      5: { cellWidth: 22 },
+      6: { cellWidth: 24 },
+      7: { cellWidth: 11 },
+      8: { cellWidth: 13 },
+      9: { cellWidth: 58 },
+    },
+    margin: { top: 40, right: 8, bottom: 14, left: 8 },
     didDrawPage(data) {
       const footer = `STEP • Página ${data.pageNumber}`;
       doc.setFontSize(9);
@@ -1045,11 +1060,17 @@ function updateMeta() {
 
 async function loadProjects() {
   try {
-    const response = await fetch("/api/projects");
-    const data = await response.json();
+    const response = await fetch("/api/projects", { cache: "no-store" });
+    let data = null;
+
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      throw new Error("Falha ao atualizar dados da planilha.");
+    }
 
     if (!response.ok || !data.ok) {
-      throw new Error(data.error || "Falha ao carregar projetos.");
+      throw new Error(data?.error || "Falha ao carregar projetos.");
     }
 
     state.projects = enrichProjects(data.projects || []);
@@ -1075,8 +1096,19 @@ async function loadProjects() {
       renderAlertModal();
     }
   } catch (error) {
-    bodyEl.innerHTML = `<tr><td colspan="17" class="loading-cell">${error.message}</td></tr>`;
-    detailCardEl.innerHTML = `<div class="detail-placeholder">${error.message}</div>`;
+    const fallbackMessage = error?.message || "Falha ao atualizar dados da planilha.";
+
+    if (state.projects.length) {
+      const staleSuffix = state.meta?.lastSync
+        ? ` | exibindo última atualização válida: ${new Date(state.meta.lastSync).toLocaleString("pt-BR")}`
+        : "";
+      lastSyncEl.textContent = `Conexão instável com a planilha${staleSuffix}`;
+      console.warn("Falha temporária ao atualizar projetos:", fallbackMessage);
+      return;
+    }
+
+    bodyEl.innerHTML = `<tr><td colspan="17" class="loading-cell">${fallbackMessage}</td></tr>`;
+    detailCardEl.innerHTML = `<div class="detail-placeholder">${fallbackMessage}</div>`;
   }
 }
 
