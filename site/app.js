@@ -268,7 +268,25 @@ function buildAlertPdfFileName() {
   return `${sanitizeFileName(parts.join('-')) || 'alertas-relatorio'}.pdf`;
 }
 
-function downloadAlertsPdf() {
+async function loadImageAsDataUrl(src) {
+  if (!src) return null;
+  try {
+    const response = await fetch(src);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.warn('Não foi possível carregar a logo para o PDF.', error);
+    return null;
+  }
+}
+
+async function downloadAlertsPdf() {
   const filteredAlerts = getFilteredAlerts();
   if (!filteredAlerts.length) {
     window.alert('Nenhum alerta encontrado para exportar em PDF.');
@@ -283,18 +301,28 @@ function downloadAlertsPdf() {
 
   const doc = new jsPdfApi({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const summary = getAlertFilterSummary();
   const generatedAt = new Date().toLocaleString('pt-BR');
+  const logoDataUrl = await loadImageAsDataUrl('./assets/step-logo.png');
+
+  if (logoDataUrl) {
+    try {
+      doc.addImage(logoDataUrl, 'PNG', 14, 10, 34, 11);
+    } catch (error) {
+      console.warn('Não foi possível renderizar a logo no PDF.', error);
+    }
+  }
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('Relatório de alertas para impressão', 14, 14);
+  doc.text('Relatório de alertas para impressão', 52, 16);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   const subtitle = `Filtro: ${summary.severity} | Setor: ${summary.sector} | Cliente: ${summary.client} | Total: ${filteredAlerts.length}`;
-  doc.text(subtitle, 14, 21);
-  doc.text(`Gerado em: ${generatedAt}`, 14, 27);
+  doc.text(subtitle, 14, 28);
+  doc.text(`Gerado em: ${generatedAt}`, 14, 34);
 
   const rows = filteredAlerts.map((alert) => {
     const severity = getAlertSeverity(alert) === 'urgent' ? 'Urgente' : 'Médio';
@@ -317,31 +345,32 @@ function downloadAlertsPdf() {
   });
 
   doc.autoTable({
-    startY: 32,
+    startY: 40,
     head: [[
       'Projeto', 'Cliente', 'Setor', 'Alerta', 'Término planejado',
       'Prazo', 'Etapa atual', 'Pintura', 'Prioridade', 'Detalhe'
     ]],
     body: rows,
-    styles: { font: 'helvetica', fontSize: 8, cellPadding: 2, overflow: 'linebreak', valign: 'middle' },
+    tableWidth: 'wrap',
+    styles: { font: 'helvetica', fontSize: 7.5, cellPadding: 1.8, overflow: 'linebreak', valign: 'middle' },
     headStyles: { fillColor: [22, 83, 126], textColor: [255, 255, 255], fontStyle: 'bold' },
     columnStyles: {
-      0: { cellWidth: 40 },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 28 },
-      4: { cellWidth: 26 },
-      5: { cellWidth: 30 },
-      6: { cellWidth: 30 },
-      7: { cellWidth: 18 },
-      8: { cellWidth: 18 },
-      9: { cellWidth: 52 },
+      0: { cellWidth: 28 },
+      1: { cellWidth: 26 },
+      2: { cellWidth: 16 },
+      3: { cellWidth: 24 },
+      4: { cellWidth: 22 },
+      5: { cellWidth: 25 },
+      6: { cellWidth: 29 },
+      7: { cellWidth: 14 },
+      8: { cellWidth: 16 },
+      9: { cellWidth: 74 },
     },
-    margin: { top: 32, right: 10, bottom: 12, left: 10 },
+    margin: { top: 40, right: 10, bottom: 14, left: 10 },
     didDrawPage(data) {
       const footer = `STEP • Página ${data.pageNumber}`;
       doc.setFontSize(9);
-      doc.text(footer, pageWidth - 14, doc.internal.pageSize.getHeight() - 6, { align: 'right' });
+      doc.text(footer, pageWidth - 14, pageHeight - 6, { align: 'right' });
     },
   });
 
