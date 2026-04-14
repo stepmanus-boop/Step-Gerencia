@@ -811,3 +811,16 @@ button.alert-badge {
   border-color: rgba(36, 166, 255, 0.42);
   box-shadow: 0 0 0 3px rgba(36, 166, 255, 0.10);
 }
+
+
+.alert-toolbar-row {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.alert-download-button {
+  min-height: 44px;
+  white-space: nowrap;
+}

@@ -230,6 +230,124 @@ function getFilteredAlerts() {
   return alerts;
 }
 
+function getAlertFilterSummary() {
+  const severityMap = { all: 'Tudo', medium: 'Médio', urgent: 'Urgente' };
+  const sectorMap = {
+    all: 'Todos os setores',
+    solda: 'Solda',
+    calderaria: 'Calderaria',
+    inspecao: 'Inspeção',
+    pintura: 'Pintura',
+    envio: 'Pendente de envio',
+  };
+
+  return {
+    severity: severityMap[state.alertFilter] || 'Tudo',
+    sector: sectorMap[state.alertSectorFilter] || 'Todos os setores',
+    client: String(state.alertClientQuery || '').trim() || 'Todos os clientes',
+  };
+}
+
+function sanitizeFileName(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9-_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
+}
+
+function buildAlertPdfFileName() {
+  const summary = getAlertFilterSummary();
+  const parts = ['alertas'];
+  if (summary.sector !== 'Todos os setores') parts.push(summary.sector);
+  if (summary.client !== 'Todos os clientes') parts.push(summary.client);
+  const stamp = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+  parts.push(stamp);
+  return `${sanitizeFileName(parts.join('-')) || 'alertas-relatorio'}.pdf`;
+}
+
+function downloadAlertsPdf() {
+  const filteredAlerts = getFilteredAlerts();
+  if (!filteredAlerts.length) {
+    window.alert('Nenhum alerta encontrado para exportar em PDF.');
+    return;
+  }
+
+  const jsPdfApi = window.jspdf?.jsPDF;
+  if (!jsPdfApi) {
+    window.alert('A biblioteca de PDF não foi carregada. Atualize a página e tente novamente.');
+    return;
+  }
+
+  const doc = new jsPdfApi({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const summary = getAlertFilterSummary();
+  const generatedAt = new Date().toLocaleString('pt-BR');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('Relatório de alertas para impressão', 14, 14);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  const subtitle = `Filtro: ${summary.severity} | Setor: ${summary.sector} | Cliente: ${summary.client} | Total: ${filteredAlerts.length}`;
+  doc.text(subtitle, 14, 21);
+  doc.text(`Gerado em: ${generatedAt}`, 14, 27);
+
+  const rows = filteredAlerts.map((alert) => {
+    const severity = getAlertSeverity(alert) === 'urgent' ? 'Urgente' : 'Médio';
+    const daysLabel = alert.daysRemaining < 0
+      ? `${Math.abs(alert.daysRemaining)} dia(s) em atraso`
+      : `${alert.daysRemaining} dia(s) para o término`;
+
+    return [
+      String(alert.projectDisplay || alert.projectNumber || '—'),
+      String(alert.client || '—'),
+      String(alert.sector || '—'),
+      String(alert.title || '—'),
+      String(alert.plannedFinishDate || '—'),
+      daysLabel,
+      String(alert.currentStage || '—'),
+      String(formatPercent(alert.coatingPercent)),
+      severity,
+      String(alert.message || '—'),
+    ];
+  });
+
+  doc.autoTable({
+    startY: 32,
+    head: [[
+      'Projeto', 'Cliente', 'Setor', 'Alerta', 'Término planejado',
+      'Prazo', 'Etapa atual', 'Pintura', 'Prioridade', 'Detalhe'
+    ]],
+    body: rows,
+    styles: { font: 'helvetica', fontSize: 8, cellPadding: 2, overflow: 'linebreak', valign: 'middle' },
+    headStyles: { fillColor: [22, 83, 126], textColor: [255, 255, 255], fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 40 },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 22 },
+      3: { cellWidth: 28 },
+      4: { cellWidth: 26 },
+      5: { cellWidth: 30 },
+      6: { cellWidth: 30 },
+      7: { cellWidth: 18 },
+      8: { cellWidth: 18 },
+      9: { cellWidth: 52 },
+    },
+    margin: { top: 32, right: 10, bottom: 12, left: 10 },
+    didDrawPage(data) {
+      const footer = `STEP • Página ${data.pageNumber}`;
+      doc.setFontSize(9);
+      doc.text(footer, pageWidth - 14, doc.internal.pageSize.getHeight() - 6, { align: 'right' });
+    },
+  });
+
+  doc.save(buildAlertPdfFileName());
+}
+
 
 function projectDisplayWithClient(project) {
   const projectName = String(project?.projectDisplay || '').trim();
@@ -802,10 +920,13 @@ function renderAlertModal() {
         <button type="button" class="alert-filter-button ${state.alertSectorFilter === "all" ? "is-active" : ""}" data-alert-sector="all">Todos os setores <strong>${state.alerts.length}</strong></button>
         ${sectorButtons.map((button) => `<button type="button" class="alert-filter-button alert-filter-button--sector ${state.alertSectorFilter === button.key ? "is-active" : ""}" data-alert-sector="${button.key}">${button.label} <strong>${sectorCounts[button.key]}</strong></button>`).join("")}
       </div>
-      <label class="alert-client-search">
-        <span>Buscar cliente</span>
-        <input type="text" value="${escapeHtml(state.alertClientQuery)}" placeholder="Ex.: Prio" data-alert-client-search="true" autocomplete="off" />
-      </label>
+      <div class="alert-toolbar-row">
+        <label class="alert-client-search">
+          <span>Buscar cliente</span>
+          <input type="text" value="${escapeHtml(state.alertClientQuery)}" placeholder="Ex.: Prio" data-alert-client-search="true" autocomplete="off" />
+        </label>
+        <button type="button" class="ghost-button alert-download-button" data-alert-download-pdf="true">Baixar PDF</button>
+      </div>
     </div>
   `;
 
@@ -1042,6 +1163,12 @@ function bindEvents() {
 
       const clientSearchInput = event.target.closest("[data-alert-client-search]");
       if (clientSearchInput) {
+        return;
+      }
+
+      const downloadPdfButton = event.target.closest("[data-alert-download-pdf]");
+      if (downloadPdfButton) {
+        downloadAlertsPdf();
         return;
       }
 
