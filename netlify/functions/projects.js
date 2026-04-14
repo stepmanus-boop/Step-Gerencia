@@ -816,6 +816,19 @@ function buildAlerts(projects) {
   return { alerts, signature };
 }
 
+function hasProjectFinishedMarker(project) {
+  const statusCandidates = [
+    project?.projectStatus,
+    project?.currentStage,
+    project?.operationalState,
+    project?.uiState,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim().toLowerCase());
+
+  return Boolean(project?.projectFinishedFlag) || statusCandidates.some((value) => value.includes("project finished"));
+}
+
 function buildStats(projects) {
   const stats = {
     totalProjects: projects.length,
@@ -849,7 +862,7 @@ function buildStats(projects) {
     progressAccumulator += project.overallProgress || 0;
 
     const state = project.operationalState || project.uiState;
-    const excludeFromCompletedCounts = Boolean(project.projectFinishedFlag);
+    const excludeFromCompletedCounts = hasProjectFinishedMarker(project);
     if (state === "completed") {
       if (!excludeFromCompletedCounts) {
         stats.completed += 1;
