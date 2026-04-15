@@ -736,7 +736,7 @@ function renderSelectedProjectCard() {
         <div class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></div>
         <div class="metric-chip"><span>Início planejado</span><strong>${project.plannedStartDate || "—"}</strong></div>
         <div class="metric-chip"><span>Término planejado</span><strong>${project.plannedFinishDate || "—"}</strong></div>
-        <div class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 0)}</strong></div>
+        <div class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 0)}kg</strong></div>
         <div class="metric-chip"><span>Painting</span><strong>${formatNumber(project.m2Painting, 3)}</strong></div>
         <div class="metric-chip"><span>% Individual</span><strong>${formatPercent(project.individualProgress)}</strong></div>
         <div class="metric-chip"><span>% Geral</span><strong>${formatPercent(project.overallProgress)}</strong></div>
@@ -774,7 +774,7 @@ function renderSelectedProjectCard() {
 function renderModal(project) {
   const stageOrder = state.meta?.stageOrder || [];
   const milestoneList = (project.milestones || [])
-    .map((item) => `<div class="milestone-chip"><span>${item.label}</span><strong>${item.value}</strong></div>`)
+    .map((item) => `<div class="milestone-chip"><span>${item.key || item.label}</span><strong>${item.value}</strong></div>`)
     .join("");
 
   const sourceSpools = state.modalPendingOnly ? getPendingSpools(project) : (project.spools || []);
@@ -831,7 +831,7 @@ function renderModal(project) {
       <article class="metric-chip"><span>Semana finalizado</span><strong>${project.weldingWeek || "—"}</strong></article>
       <article class="metric-chip"><span>Início planejado</span><strong>${project.plannedStartDate || "—"}</strong></article>
       <article class="metric-chip"><span>Término planejado</span><strong>${project.plannedFinishDate || "—"}</strong></article>
-      <article class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 0)}</strong></article>
+      <article class="metric-chip"><span>Peso total</span><strong>${formatNumber(project.kilos, 0)}kg</strong></article>
       <article class="metric-chip"><span>Painting total</span><strong>${formatNumber(project.m2Painting, 3)}</strong></article>
       <article class="metric-chip"><span>% Individual</span><strong>${formatPercent(project.individualProgress)}</strong></article>
       <article class="metric-chip"><span>% Geral</span><strong>${formatPercent(project.overallProgress)}</strong></article>
